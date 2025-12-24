@@ -1,8 +1,18 @@
-# VulnTrack — Yocto CVE Dashboard
+<p align="center">
+  <img src="assets/logo/vulntrack-banner.png" width="900" alt="VulnTrack">
+</p>
 
 <p align="center">
-  <img src="assets/logo/vulntrack-logo.png" width="180" alt="VulnTrack Logo">
+<a
+  <img src="https://img.shields.io/github/deployments/prashantdivate/VulnTrack/github-pages?label=GitHub%20Pages&logo=github" />
+  <img src="https://img.shields.io/website?url=https%3A%2F%2Fprashantdivate.github.io%2FVulnTrack%2F&label=Website&logo=googlechrome" />
+  <img src="https://img.shields.io/badge/Yocto-Compatible-blue?logo=yoctoproject" />
+  <img src="https://img.shields.io/badge/Client--Side-Only-success" />
+  <img src="https://img.shields.io/github/last-commit/prashantdivate/VulnTrack" />
+</a>
 </p>
+
+# VulnTrack — Yocto CVE Dashboard
 
 VulnTrack is a lightweight, browser-based dashboard for visualizing Yocto
 `cve-summary.json` reports.  
@@ -51,18 +61,6 @@ Then open http://localhost:8080
 5. Explore Summary, Packages, Issues, and other tabs
 6. Click CVEs for details
 7. Export CSV if needed
-
----
-
-## Deploying on GitHub Pages
-
-1. Push index.html and style.css to GitHub
-2. Go to Settings → Pages
-3. Source: Deploy from branch
-4. Branch: main, Folder: /(root)
-5. Save and open the provided URL
-
-Your JSON is still loaded locally via file picker.
 
 ---
 
