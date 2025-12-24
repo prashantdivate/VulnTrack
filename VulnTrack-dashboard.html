@@ -1,0 +1,894 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Yocto CVE Report (Local)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    :root{
+      --bg:#070b12;
+      --panel:#0c1424;
+      --panel2:#0b1220;
+      --card: rgba(255,255,255,.06);
+      --card2: rgba(255,255,255,.04);
+      --border: rgba(255,255,255,.10);
+      --text:#eaf0ff;
+      --muted: rgba(234,240,255,.68);
+      --shadow: 0 16px 50px rgba(0,0,0,.55);
+      --radius: 16px;
+      --accent:#f5b24a;
+      --good:#22c55e;
+      --warn:#f59e0b;
+      --bad:#ef4444;
+      --info:#60a5fa;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      background:
+        radial-gradient(1100px 420px at 20% 0%, rgba(90,120,255,.18), transparent 60%),
+        radial-gradient(900px 380px at 80% 0%, rgba(255,120,180,.12), transparent 60%),
+        var(--bg);
+      color:var(--text);
+      min-height:100vh;
+    }
+
+    /* ====== Top header (GTI-like) ====== */
+    header{
+      position:sticky; top:0; z-index:30;
+      backdrop-filter: blur(12px);
+      background: linear-gradient(to bottom, rgba(7,11,18,.94), rgba(7,11,18,.55));
+      border-bottom:1px solid var(--border);
+    }
+    .header-inner{
+      max-width: 1400px;
+      margin:0 auto;
+      padding: 14px 18px;
+      display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+    }
+    .h-left{display:flex; flex-direction:column; gap:6px; min-width: 0;}
+    .h-title{
+      display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+      font-weight:900; letter-spacing:.2px; font-size:18px;
+    }
+    .h-sub{color:var(--muted); font-size:12px; display:flex; gap:12px; flex-wrap:wrap}
+    .actions{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    .btn{
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.06);
+      color:var(--text);
+      padding:9px 12px;
+      border-radius:12px;
+      cursor:pointer;
+      box-shadow: 0 10px 22px rgba(0,0,0,.25);
+      font-weight:700;
+      user-select:none;
+    }
+    .btn:hover{background: rgba(255,255,255,.10)}
+    input[type="file"]{display:none}
+
+    .chipbar{
+      max-width: 1400px;
+      margin:0 auto;
+      padding: 0 18px 14px 18px;
+      display:flex; gap:8px; flex-wrap:wrap;
+    }
+    .chip{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:6px 10px;
+      border-radius:999px;
+      background: rgba(0,0,0,.25);
+      border:1px solid rgba(255,255,255,.10);
+      color:var(--muted);
+      font-size:12px;
+    }
+    .dot{width:8px; height:8px; border-radius:50%}
+    .chip strong{color:var(--text)}
+    .chip.bad{border-color: rgba(239,68,68,.35); background: rgba(239,68,68,.10); color:#fecaca}
+    .chip.warn{border-color: rgba(245,158,11,.35); background: rgba(245,158,11,.10); color:#fde68a}
+    .chip.good{border-color: rgba(34,197,94,.35); background: rgba(34,197,94,.10); color:#bbf7d0}
+    .chip.info{border-color: rgba(96,165,250,.35); background: rgba(96,165,250,.10); color:#bfdbfe}
+
+    /* ====== Tabs ====== */
+    .tabs{
+      max-width: 1400px;
+      margin:0 auto;
+      padding: 0 18px 10px 18px;
+      display:flex; gap:8px; flex-wrap:wrap;
+    }
+    .tab{
+      padding:8px 12px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.04);
+      color: var(--muted);
+      cursor:pointer;
+      font-weight:800;
+      font-size:13px;
+    }
+    .tab.active{
+      background: rgba(245,178,74,.16);
+      border-color: rgba(245,178,74,.40);
+      color: var(--text);
+    }
+
+    main{max-width: 1400px; margin:0 auto; padding: 16px 18px 28px 18px;}
+    .grid2{display:grid; grid-template-columns: 1.25fr .75fr; gap:14px;}
+    @media (max-width: 1100px){ .grid2{grid-template-columns:1fr;} }
+
+    .panel{
+      background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.04));
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+    .panel-title{font-size:14px; font-weight:900; margin:0 0 10px 0; letter-spacing:.2px;}
+    .muted{color:var(--muted); font-size:12px; line-height:1.45;}
+
+    /* Charts: fix tilt/blur */
+    .chartWrap{
+      height: 270px;
+      position: relative;
+      background: rgba(0,0,0,.14);
+      border: 1px solid rgba(255,255,255,.06);
+      border-radius: 14px;
+      padding: 10px;
+      overflow:hidden;
+    }
+    canvas{display:block; width:100% !important; height:100% !important;}
+
+    /* Cards inside panels */
+    .kvgrid{display:grid; grid-template-columns: 1fr 1fr; gap:10px;}
+    @media (max-width: 700px){ .kvgrid{grid-template-columns:1fr;} }
+    .kv{
+      background: rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius: 14px;
+      padding: 10px;
+    }
+    .kv .k{color:var(--muted); font-size:12px}
+    .kv .v{margin-top:6px; font-weight:900; font-size:13px}
+
+    /* Tables */
+    .controls{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:10px;}
+    input[type="text"], select{
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.05);
+      color:var(--text);
+      padding:9px 10px;
+      border-radius:12px;
+      outline:none;
+    }
+    input[type="text"]{min-width:280px}
+    .tableWrap{
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:14px;
+      overflow:hidden;
+      background: rgba(0,0,0,.12);
+    }
+    table{width:100%; border-collapse:collapse; font-size:13px}
+    thead{background: rgba(255,255,255,.05)}
+    th, td{padding:10px 10px; border-bottom:1px solid rgba(255,255,255,.07); vertical-align:top}
+    th{color:var(--muted); text-align:left; font-weight:900}
+    tr:hover{background: rgba(255,255,255,.04); cursor:pointer;}
+
+    .sevBadge{
+      display:inline-flex; align-items:center; gap:7px;
+      font-weight:900; font-size:12px;
+      padding:4px 9px; border-radius:999px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.22);
+    }
+    .sevBadge .dot{width:8px; height:8px; border-radius:50%}
+
+    /* Pages */
+    .page{display:none;}
+    .page.active{display:block;}
+
+    /* Package list */
+    .pkgList{display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:12px;}
+    @media (max-width: 1100px){ .pkgList{grid-template-columns:1fr;} }
+    .pkgCard{
+      background: rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius: 16px;
+      padding:12px;
+    }
+    .pkgTop{display:flex; justify-content:space-between; align-items:flex-start; gap:10px;}
+    .pkgName{font-weight:900}
+    .pkgMeta{color:var(--muted); font-size:12px; margin-top:4px}
+    .miniRow{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
+    .miniPill{
+      font-size:12px; padding:5px 9px; border-radius:999px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.18);
+      color: var(--muted);
+    }
+    .link{color:#9ec1ff; text-decoration:none}
+    .link:hover{text-decoration:underline}
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="h-left">
+      <div class="h-title">
+        <span id="reportTitle">Vulnerability Report</span>
+        <span class="chip info" id="schemaChip"><span class="dot" style="background:var(--info)"></span><strong>Yocto</strong> JSON</span>
+      </div>
+      <div class="h-sub">
+        <span id="createdLine">Report generated: —</span>
+        <span id="pkgLine">Packages: —</span>
+        <span id="issueLine">Issues: —</span>
+      </div>
+    </div>
+
+    <div class="actions">
+      <label class="btn" for="file">Choose JSON</label>
+      <input id="file" type="file" accept=".json,application/json"/>
+      <button class="btn" id="resetBtn">Reset</button>
+    </div>
+  </div>
+
+  <!-- “Key attributes bar” inspired by GTI -->
+  <div class="chipbar" id="chipbar">
+    <span class="chip">Load <strong>cve-summary.json</strong> to view</span>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-page="summary">Summary</div>
+    <div class="tab" data-page="packages">Packages</div>
+    <div class="tab" data-page="issues">Issues</div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ===== Summary ===== -->
+  <section class="page active" id="page-summary">
+    <div class="grid2">
+      <div class="panel">
+        <h3 class="panel-title">Summary & Analysis</h3>
+        <div class="muted" id="execSummary">
+          Load a Yocto <code>cve-summary.json</code> (local). This report summarizes package vulnerabilities found during your build.
+        </div>
+
+        <div style="height:12px"></div>
+
+        <h3 class="panel-title">Details</h3>
+        <div class="kvgrid">
+          <div class="kv"><div class="k">Build schema version</div><div class="v" id="schemaV">—</div></div>
+          <div class="kv"><div class="k">Affected packages</div><div class="v" id="affPkgs">—</div></div>
+          <div class="kv"><div class="k">Total CVE issues</div><div class="v" id="totalIssues">—</div></div>
+          <div class="kv"><div class="k">Unpatched / Ignored</div><div class="v" id="openIssues">—</div></div>
+        </div>
+
+        <div style="height:14px"></div>
+
+        <h3 class="panel-title">Top CVEs (by severity)</h3>
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:140px">CVE</th>
+                <th style="width:120px">Severity</th>
+                <th>Summary</th>
+                <th style="width:110px">Status</th>
+              </tr>
+            </thead>
+            <tbody id="topCvesBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3 class="panel-title">Priority Visualization</h3>
+        <div class="chartWrap"><canvas id="sevChart"></canvas></div>
+
+        <div style="height:14px"></div>
+
+        <h3 class="panel-title">Vulnerable Packages</h3>
+        <div class="chartWrap"><canvas id="pkgChart"></canvas></div>
+
+        <div style="height:14px"></div>
+
+        <h3 class="panel-title">CVSS Snapshot</h3>
+        <div class="kvgrid">
+          <div class="kv"><div class="k">Highest CVSS v3</div><div class="v" id="maxCvss3">—</div></div>
+          <div class="kv"><div class="k">Highest CVSS v2</div><div class="v" id="maxCvss2">—</div></div>
+          <div class="kv"><div class="k">Most common vector</div><div class="v" id="commonVector">—</div></div>
+          <div class="kv"><div class="k">Notes</div><div class="v" style="font-weight:700;color:var(--muted)">Yocto JSON does not include EPSS/KEV/exploit intel by default.</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Packages ===== -->
+  <section class="page" id="page-packages">
+    <div class="panel">
+      <h3 class="panel-title">Packages</h3>
+      <div class="muted">Click a package to drill down. Shows counts by severity derived from CVSS. (Local-only)</div>
+      <div style="height:12px"></div>
+
+      <div class="controls">
+        <input id="pkgSearch" type="text" placeholder="Search package name / layer..." />
+        <select id="pkgLayerFilter">
+          <option value="">All layers</option>
+        </select>
+      </div>
+
+      <div class="pkgList" id="pkgList"></div>
+    </div>
+
+    <div style="height:14px"></div>
+
+    <div class="panel" id="pkgDetailPanel">
+      <h3 class="panel-title">Package Details</h3>
+      <div class="muted">Select a package to see its issues.</div>
+    </div>
+  </section>
+
+  <!-- ===== Issues ===== -->
+  <section class="page" id="page-issues">
+    <div class="panel">
+      <h3 class="panel-title">Issues</h3>
+
+      <div class="controls">
+        <input id="q" type="text" placeholder="Search CVE / package / summary..." />
+        <select id="sevFilter">
+          <option value="">All severities</option>
+          <option>Critical</option><option>High</option><option>Medium</option><option>Low</option><option>None</option>
+        </select>
+        <select id="statusFilter">
+          <option value="">All statuses</option>
+          <option>Patched</option><option>Unpatched</option><option>Ignored</option>
+        </select>
+        <button class="btn" id="csvBtn">Export filtered CSV</button>
+      </div>
+
+      <div class="grid2" style="grid-template-columns: 1.3fr .7fr;">
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:140px">CVE</th>
+                <th style="width:120px">Severity</th>
+                <th style="width:220px">Package</th>
+                <th style="width:110px">Version</th>
+                <th style="width:110px">Status</th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+
+        <div class="panel" id="detailsPanel">
+          <h3 class="panel-title">Issue Details</h3>
+          <div class="muted">Click an issue row to view details.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+  // ===== Utilities =====
+  const $ = (id)=>document.getElementById(id);
+  const nowISO = ()=> new Date().toISOString();
+
+  function esc(s){ return String(s ?? "").replace(/[&<>"]/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c])); }
+  function toNum(x){
+    const n = Number(String(x ?? "").trim());
+    return Number.isFinite(n) ? n : 0;
+  }
+  function severityFrom(issue){
+    const v3 = toNum(issue.scorev3);
+    const v2 = toNum(issue.scorev2);
+    const s = v3 > 0 ? v3 : v2;
+    if (s >= 9.0) return "Critical";
+    if (s >= 7.0) return "High";
+    if (s >= 4.0) return "Medium";
+    if (s >  0.0) return "Low";
+    return "None";
+  }
+  function sevColor(sev){
+    switch(sev){
+      case "Critical": return "rgba(255, 88, 120, 0.95)";
+      case "High":     return "rgba(255, 170, 80, 0.95)";
+      case "Medium":   return "rgba(120, 200, 255, 0.95)";
+      case "Low":      return "rgba(140, 255, 180, 0.95)";
+      default:         return "rgba(200, 200, 200, 0.85)";
+    }
+  }
+  function sevBadge(sev){
+    return `<span class="sevBadge"><span class="dot" style="background:${sevColor(sev)}"></span>${esc(sev)}</span>`;
+  }
+  function downloadText(filename, text){
+    const blob = new Blob([text], {type:"text/plain;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  // ===== State =====
+  let yocto = null;             // raw JSON
+  let rows = [];                // flattened issues
+  let pkgIndex = [];            // per-package aggregates
+  let filtered = [];
+  let sevChart = null;
+  let pkgChart = null;
+
+  // ===== Charts (crisp) =====
+  function buildSevChart(counts){
+    const labels = ["Critical","High","Medium","Low","None"];
+    const data = labels.map(l=>counts[l] ?? 0);
+    if (sevChart) sevChart.destroy();
+
+    sevChart = new Chart($("sevChart"), {
+      type: "doughnut",
+      data: {
+        labels,
+        datasets: [{
+          data,
+          backgroundColor: labels.map(sevColor),
+          borderColor: "rgba(255,255,255,.18)",
+          borderWidth: 1,
+          hoverOffset: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        devicePixelRatio: window.devicePixelRatio || 1,
+        cutout: "62%",
+        rotation: -90,
+        circumference: 360,
+        plugins: {
+          legend: { position: "top", labels: { color: "rgba(234,240,255,.85)", boxWidth: 14 } }
+        }
+      }
+    });
+  }
+
+  function buildPkgChart(pkgCounts){
+    const pairs = Object.entries(pkgCounts).sort((a,b)=>b[1]-a[1]).slice(0, 12);
+    const labels = pairs.map(p=>p[0]);
+    const data = pairs.map(p=>p[1]);
+    if (pkgChart) pkgChart.destroy();
+
+    pkgChart = new Chart($("pkgChart"), {
+      type: "bar",
+      data: { labels, datasets: [{ data }] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        devicePixelRatio: window.devicePixelRatio || 1,
+        plugins: { legend: { display:false } },
+        scales: {
+          x: { ticks: { color:"rgba(234,240,255,.75)" }, grid: { color:"rgba(255,255,255,.06)" } },
+          y: { ticks: { color:"rgba(234,240,255,.75)" }, grid: { color:"rgba(255,255,255,.06)" } }
+        }
+      }
+    });
+  }
+
+  // ===== Parsing Yocto cve-summary.json =====
+  function buildFromYocto(obj){
+    yocto = obj;
+    rows = [];
+    pkgIndex = [];
+
+    const pkgs = obj.package || [];
+    const layerSet = new Set();
+
+    let maxCvss3 = 0, maxCvss2 = 0;
+    const vectorCounts = {};
+
+    for (const p of pkgs){
+      const pkgName = p.name ?? "unknown";
+      const pkgLayer = p.layer ?? "";
+      const pkgVer = p.version ?? "";
+      layerSet.add(pkgLayer);
+
+      const issues = Array.isArray(p.issue) ? p.issue : [];
+      const sevCounts = {Critical:0,High:0,Medium:0,Low:0,None:0};
+      let patched = 0, unpatched = 0, ignored = 0;
+
+      for (const iss of issues){
+        const sev = severityFrom(iss);
+        sevCounts[sev] = (sevCounts[sev]||0)+1;
+
+        const s3 = toNum(iss.scorev3); const s2 = toNum(iss.scorev2);
+        if (s3 > maxCvss3) maxCvss3 = s3;
+        if (s2 > maxCvss2) maxCvss2 = s2;
+
+        const vec = (iss.vector || "").trim();
+        if (vec) vectorCounts[vec] = (vectorCounts[vec]||0)+1;
+
+        const status = iss.status ?? "";
+        if (status === "Patched") patched++;
+        else if (status === "Unpatched") unpatched++;
+        else if (status === "Ignored") ignored++;
+
+        rows.push({
+          cve: iss.id ?? "UNKNOWN",
+          summary: iss.summary ?? "",
+          scorev2: iss.scorev2 ?? "",
+          scorev3: iss.scorev3 ?? "",
+          vector: iss.vector ?? "",
+          status: status,
+          link: iss.link ?? "",
+          pkg: pkgName,
+          pkgVersion: pkgVer,
+          layer: pkgLayer,
+          sev
+        });
+      }
+
+      if (issues.length){
+        pkgIndex.push({
+          name: pkgName,
+          version: pkgVer,
+          layer: pkgLayer,
+          total: issues.length,
+          sevCounts,
+          patched, unpatched, ignored
+        });
+      }
+    }
+
+    // Header meta
+    $("createdLine").textContent = `Report generated: ${nowISO()}`;
+    $("pkgLine").textContent = `Packages: ${pkgs.length.toLocaleString()}`;
+    $("issueLine").textContent = `Issues: ${rows.length.toLocaleString()}`;
+
+    $("schemaV").textContent = String(obj.version ?? "—");
+    $("affPkgs").textContent = new Set(rows.map(r=>r.pkg)).size.toLocaleString();
+    $("totalIssues").textContent = rows.length.toLocaleString();
+    const open = rows.filter(r => r.status === "Unpatched" || r.status === "Ignored").length;
+    $("openIssues").textContent = open.toLocaleString();
+
+    $("maxCvss3").textContent = maxCvss3 ? maxCvss3.toFixed(1) : "—";
+    $("maxCvss2").textContent = maxCvss2 ? maxCvss2.toFixed(1) : "—";
+    const commonVector = Object.entries(vectorCounts).sort((a,b)=>b[1]-a[1])[0]?.[0] || "—";
+    $("commonVector").textContent = commonVector;
+
+    // Executive summary text
+    const patched = rows.filter(r=>r.status==="Patched").length;
+    const unpatched = rows.filter(r=>r.status==="Unpatched").length;
+    const ignored = rows.filter(r=>r.status==="Ignored").length;
+    const uniqCves = new Set(rows.map(r=>r.cve)).size;
+
+    $("execSummary").innerHTML = `
+      <div class="muted">
+        This is a local report generated from Yocto <code>cve-summary.json</code>. It includes
+        <strong>${rows.length.toLocaleString()}</strong> CVE issues across
+        <strong>${new Set(rows.map(r=>r.pkg)).size.toLocaleString()}</strong> affected packages
+        (<strong>${uniqCves.toLocaleString()}</strong> unique CVE IDs).
+        Status breakdown: <strong>${patched}</strong> patched, <strong>${unpatched}</strong> unpatched, <strong>${ignored}</strong> ignored.
+      </div>
+    `;
+
+    // Chips (GTI-like key attributes bar, but based on our available data)
+    const counts = {Critical:0,High:0,Medium:0,Low:0,None:0};
+    const statusCounts = {Patched:0,Unpatched:0,Ignored:0};
+    for (const r of rows){
+      counts[r.sev] = (counts[r.sev]||0)+1;
+      if (r.status in statusCounts) statusCounts[r.status]++;
+    }
+
+    const chips = [];
+    chips.push(`<span class="chip info"><span class="dot" style="background:var(--info)"></span><strong>Schema</strong>: ${esc(obj.version ?? "—")}</span>`);
+    chips.push(`<span class="chip bad"><span class="dot" style="background:${sevColor("Critical")}"></span><strong>Critical</strong>: ${counts.Critical}</span>`);
+    chips.push(`<span class="chip warn"><span class="dot" style="background:${sevColor("High")}"></span><strong>High</strong>: ${counts.High}</span>`);
+    chips.push(`<span class="chip"><span class="dot" style="background:${sevColor("Medium")}"></span><strong>Medium</strong>: ${counts.Medium}</span>`);
+    chips.push(`<span class="chip good"><span class="dot" style="background:${sevColor("Low")}"></span><strong>Low</strong>: ${counts.Low}</span>`);
+    chips.push(`<span class="chip good"><span class="dot" style="background:var(--good)"></span><strong>Patched</strong>: ${statusCounts.Patched}</span>`);
+    chips.push(`<span class="chip warn"><span class="dot" style="background:var(--warn)"></span><strong>Unpatched</strong>: ${statusCounts.Unpatched}</span>`);
+    chips.push(`<span class="chip"><span class="dot" style="background:rgba(200,200,200,.85)"></span><strong>Ignored</strong>: ${statusCounts.Ignored}</span>`);
+    $("chipbar").innerHTML = chips.join("");
+
+    // Charts
+    buildSevChart(counts);
+    const pkgCounts = {};
+    for (const r of rows) pkgCounts[r.pkg] = (pkgCounts[r.pkg]||0)+1;
+    buildPkgChart(pkgCounts);
+
+    // Top CVEs table
+    const top = [...rows].sort((a,b)=>{
+      // sort by severity, then by scorev3/v2 desc
+      const rank = (sev)=> ({Critical:4,High:3,Medium:2,Low:1,None:0}[sev] ?? 0);
+      const ra = rank(a.sev), rb = rank(b.sev);
+      if (rb !== ra) return rb - ra;
+      const sa = Math.max(toNum(a.scorev3), toNum(a.scorev2));
+      const sb = Math.max(toNum(b.scorev3), toNum(b.scorev2));
+      return sb - sa;
+    }).slice(0, 12);
+
+    $("topCvesBody").innerHTML = top.map(r=>`
+      <tr data-cve="${esc(r.cve)}" data-pkg="${esc(r.pkg)}">
+        <td><strong>${esc(r.cve)}</strong></td>
+        <td>${sevBadge(r.sev)}</td>
+        <td class="muted">${esc(r.summary || "")}</td>
+        <td>${esc(r.status)}</td>
+      </tr>
+    `).join("");
+
+    $("topCvesBody").querySelectorAll("tr").forEach(tr=>{
+      tr.addEventListener("click", ()=>{
+        const cve = tr.getAttribute("data-cve");
+        // jump to issues tab filtered by this cve
+        setTab("issues");
+        $("q").value = cve;
+        applyIssueFilters();
+        const first = filtered[0];
+        if (first) renderIssueDetails(first);
+      });
+    });
+
+    // Packages page prep
+    const layerList = [...layerSet].filter(Boolean).sort();
+    $("pkgLayerFilter").innerHTML =
+      `<option value="">All layers</option>` + layerList.map(l=>`<option value="${esc(l)}">${esc(l)}</option>`).join("");
+    renderPackagesList();
+    // Issues page default
+    $("q").value = ""; $("sevFilter").value=""; $("statusFilter").value="";
+    filtered = [...rows];
+    renderIssuesTable();
+    $("detailsPanel").innerHTML = `<h3 class="panel-title">Issue Details</h3><div class="muted">Click an issue row to view details.</div>`;
+  }
+
+  // ===== Tabs =====
+  function setTab(name){
+    document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active", t.dataset.page===name));
+    document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+    $(`page-${name}`).classList.add("active");
+  }
+  document.querySelectorAll(".tab").forEach(t=>{
+    t.addEventListener("click", ()=>setTab(t.dataset.page));
+  });
+
+  // ===== Packages page =====
+  function renderPackagesList(){
+    const q = $("pkgSearch").value.trim().toLowerCase();
+    const layer = $("pkgLayerFilter").value;
+
+    let list = pkgIndex;
+    if (layer) list = list.filter(p=>p.layer===layer);
+    if (q) list = list.filter(p => (p.name||"").toLowerCase().includes(q) || (p.layer||"").toLowerCase().includes(q));
+
+    // sort by critical/high then total
+    const rank = (p)=> (p.sevCounts.Critical*100000 + p.sevCounts.High*10000 + p.total);
+    list = [...list].sort((a,b)=>rank(b)-rank(a));
+
+    $("pkgList").innerHTML = list.map(p=>{
+      const sc = p.sevCounts;
+      return `
+        <div class="pkgCard" data-name="${esc(p.name)}">
+          <div class="pkgTop">
+            <div style="min-width:0;">
+              <div class="pkgName">${esc(p.name)}</div>
+              <div class="pkgMeta">version: ${esc(p.version || "—")} • layer: ${esc(p.layer || "—")} • issues: <strong>${p.total}</strong></div>
+            </div>
+            <div>${sevBadge(sc.Critical? "Critical": sc.High? "High": sc.Medium? "Medium": sc.Low? "Low":"None")}</div>
+          </div>
+          <div class="miniRow">
+            <span class="miniPill" style="border-color:rgba(255,88,120,.35);color:#fecaca;">Critical: ${sc.Critical}</span>
+            <span class="miniPill" style="border-color:rgba(255,170,80,.35);color:#fde68a;">High: ${sc.High}</span>
+            <span class="miniPill" style="border-color:rgba(120,200,255,.35);color:#bfdbfe;">Medium: ${sc.Medium}</span>
+            <span class="miniPill" style="border-color:rgba(140,255,180,.35);color:#bbf7d0;">Low: ${sc.Low}</span>
+            <span class="miniPill">Patched: ${p.patched}</span>
+            <span class="miniPill">Unpatched: ${p.unpatched}</span>
+            <span class="miniPill">Ignored: ${p.ignored}</span>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    document.querySelectorAll(".pkgCard").forEach(card=>{
+      card.addEventListener("click", ()=>{
+        const name = card.getAttribute("data-name");
+        renderPackageDetails(name);
+      });
+    });
+  }
+
+  function renderPackageDetails(pkgName){
+    const issues = rows.filter(r=>r.pkg===pkgName);
+    if (!issues.length){
+      $("pkgDetailPanel").innerHTML = `<h3 class="panel-title">Package Details</h3><div class="muted">No issues found.</div>`;
+      return;
+    }
+    const pkgMeta = pkgIndex.find(p=>p.name===pkgName);
+    const top = [...issues].sort((a,b)=>{
+      const rank = (sev)=> ({Critical:4,High:3,Medium:2,Low:1,None:0}[sev] ?? 0);
+      const ra = rank(a.sev), rb = rank(b.sev);
+      if (rb !== ra) return rb - ra;
+      const sa = Math.max(toNum(a.scorev3), toNum(a.scorev2));
+      const sb = Math.max(toNum(b.scorev3), toNum(b.scorev2));
+      return sb - sa;
+    });
+
+    $("pkgDetailPanel").innerHTML = `
+      <h3 class="panel-title">Package Details</h3>
+      <div class="muted"><strong>${esc(pkgName)}</strong> • version: ${esc(pkgMeta?.version || "—")} • layer: ${esc(pkgMeta?.layer || "—")} • issues: ${issues.length}</div>
+      <div style="height:12px"></div>
+      <div class="tableWrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:140px">CVE</th>
+              <th style="width:120px">Severity</th>
+              <th>Summary</th>
+              <th style="width:110px">Status</th>
+              <th style="width:90px">CVSS</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${top.slice(0, 50).map(r=>{
+              const score = Math.max(toNum(r.scorev3), toNum(r.scorev2));
+              return `
+                <tr data-cve="${esc(r.cve)}">
+                  <td><strong>${esc(r.cve)}</strong></td>
+                  <td>${sevBadge(r.sev)}</td>
+                  <td class="muted">${esc(r.summary || "")}</td>
+                  <td>${esc(r.status)}</td>
+                  <td>${score ? score.toFixed(1) : "—"}</td>
+                </tr>
+              `;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>
+      <div class="muted" style="margin-top:10px;">Showing up to 50 issues. Use the Issues tab for full search/export.</div>
+    `;
+
+    $("pkgDetailPanel").querySelectorAll("tr").forEach(tr=>{
+      tr.addEventListener("click", ()=>{
+        const cve = tr.getAttribute("data-cve");
+        setTab("issues");
+        $("q").value = cve;
+        applyIssueFilters();
+        const first = filtered[0];
+        if (first) renderIssueDetails(first);
+      });
+    });
+  }
+
+  // ===== Issues page =====
+  function applyIssueFilters(){
+    const q = $("q").value.trim().toLowerCase();
+    const sevF = $("sevFilter").value;
+    const stF  = $("statusFilter").value;
+
+    filtered = rows.filter(r=>{
+      if (sevF && r.sev !== sevF) return false;
+      if (stF && r.status !== stF) return false;
+      if (!q) return true;
+      return (
+        r.cve.toLowerCase().includes(q) ||
+        r.pkg.toLowerCase().includes(q) ||
+        (r.summary||"").toLowerCase().includes(q)
+      );
+    });
+
+    renderIssuesTable();
+  }
+
+  function renderIssuesTable(){
+    $("tbody").innerHTML = filtered.map(r=>`
+      <tr data-cve="${esc(r.cve)}" data-pkg="${esc(r.pkg)}">
+        <td><strong>${esc(r.cve)}</strong></td>
+        <td>${sevBadge(r.sev)}</td>
+        <td>${esc(r.pkg)}</td>
+        <td>${esc(r.pkgVersion || "")}</td>
+        <td>${esc(r.status || "")}</td>
+      </tr>
+    `).join("");
+
+    $("tbody").querySelectorAll("tr").forEach(tr=>{
+      tr.addEventListener("click", ()=>{
+        const cve = tr.getAttribute("data-cve");
+        const pkg = tr.getAttribute("data-pkg");
+        const r = filtered.find(x=>x.cve===cve && x.pkg===pkg) || filtered.find(x=>x.cve===cve) || filtered[0];
+        if (r) renderIssueDetails(r);
+      });
+    });
+  }
+
+  function renderIssueDetails(r){
+    const score = Math.max(toNum(r.scorev3), toNum(r.scorev2));
+    $("detailsPanel").innerHTML = `
+      <h3 class="panel-title">Issue Details</h3>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <div style="font-weight:900;font-size:16px;">${esc(r.cve)}</div>
+        ${sevBadge(r.sev)}
+        <span class="chip"><strong>Status</strong>: ${esc(r.status||"—")}</span>
+      </div>
+      <div class="muted" style="margin-top:8px;">
+        Package: <strong>${esc(r.pkg)}</strong> ${esc(r.pkgVersion||"")} • Layer: ${esc(r.layer||"—")}
+      </div>
+      <div class="muted" style="margin-top:10px;">${esc(r.summary || "")}</div>
+
+      <div style="height:12px"></div>
+      <div class="kvgrid">
+        <div class="kv"><div class="k">CVSS v3</div><div class="v">${esc(r.scorev3 || "—")}</div></div>
+        <div class="kv"><div class="k">CVSS v2</div><div class="v">${esc(r.scorev2 || "—")}</div></div>
+        <div class="kv"><div class="k">Vector</div><div class="v">${esc(r.vector || "—")}</div></div>
+        <div class="kv"><div class="k">Reference</div><div class="v">${r.link ? `<a class="link" href="${esc(r.link)}" target="_blank" rel="noopener">Open link</a>` : "—"}</div></div>
+      </div>
+
+      <div class="muted" style="margin-top:10px;">
+        Note: GTI-style fields like “Exploit availability / Exploited in the wild / EPSS / KEV” require external intelligence feeds (not present in Yocto JSON).
+      </div>
+    `;
+  }
+
+  // ===== Events =====
+  $("file").addEventListener("change", async (e)=>{
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const text = await f.text();
+    const obj = JSON.parse(text);
+
+    if (!obj || !Array.isArray(obj.package)){
+      alert("This doesn't look like Yocto cve-summary.json (expected top-level { package: [...] }).");
+      return;
+    }
+    buildFromYocto(obj);
+  });
+
+  $("resetBtn").addEventListener("click", ()=>{
+    yocto=null; rows=[]; pkgIndex=[]; filtered=[];
+    $("reportTitle").textContent = "Vulnerability Report";
+    $("createdLine").textContent = "Report generated: —";
+    $("pkgLine").textContent = "Packages: —";
+    $("issueLine").textContent = "Issues: —";
+    $("chipbar").innerHTML = `<span class="chip">Load <strong>cve-summary.json</strong> to view</span>`;
+    $("schemaV").textContent = $("affPkgs").textContent = $("totalIssues").textContent = $("openIssues").textContent = "—";
+    $("maxCvss3").textContent = $("maxCvss2").textContent = $("commonVector").textContent = "—";
+    $("topCvesBody").innerHTML = "";
+    $("pkgList").innerHTML = "";
+    $("pkgDetailPanel").innerHTML = `<h3 class="panel-title">Package Details</h3><div class="muted">Select a package to see its issues.</div>`;
+    $("tbody").innerHTML = "";
+    $("detailsPanel").innerHTML = `<h3 class="panel-title">Issue Details</h3><div class="muted">Click an issue row to view details.</div>`;
+    $("q").value=""; $("sevFilter").value=""; $("statusFilter").value="";
+    $("pkgSearch").value=""; $("pkgLayerFilter").innerHTML = `<option value="">All layers</option>`;
+    if (sevChart) sevChart.destroy();
+    if (pkgChart) pkgChart.destroy();
+    sevChart = pkgChart = null;
+    setTab("summary");
+    $("file").value="";
+  });
+
+  ["q","sevFilter","statusFilter"].forEach(id=>{
+    $(id).addEventListener("input", applyIssueFilters);
+    $(id).addEventListener("change", applyIssueFilters);
+  });
+  $("csvBtn").addEventListener("click", ()=>{
+    if (!filtered.length){ alert("No rows to export."); return; }
+    const header = ["cve","severity","package","package_version","layer","status","scorev3","scorev2","vector","link","summary"];
+    const lines = [header.join(",")];
+    for (const r of filtered){
+      const row = [
+        r.cve, r.sev, r.pkg, r.pkgVersion, r.layer, r.status, r.scorev3, r.scorev2, r.vector, r.link, r.summary
+      ].map(v => `"${String(v ?? "").replaceAll('"','""')}"`);
+      lines.push(row.join(","));
+    }
+    downloadText("yocto-filtered-cves.csv", lines.join("\n"));
+  });
+
+  $("pkgSearch").addEventListener("input", renderPackagesList);
+  $("pkgLayerFilter").addEventListener("change", renderPackagesList);
+</script>
+
+</body>
+</html>
+
