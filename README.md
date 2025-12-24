@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo/vulntrack-banner.png" width="900" alt="VulnTrack">
+  <img src="assets/logo/vulntrack-banner.png" width="100%" alt="VulnTrack">
 </p>
 
 <p align="center">
@@ -16,11 +16,9 @@
 
 VulnTrack is a lightweight, browser-based dashboard for visualizing Yocto
 `cve-summary.json` reports.  
-It runs entirely on the client side using HTML, CSS, and JavaScript — no backend,
-no server, no data upload.
+It runs entirely on the client side using HTML, CSS, and JavaScript — no backend, no server, no data upload.
 
-Inspired by GTI-style vulnerability intelligence dashboards and designed
-specifically for Yocto-based systems.
+Inspired by GTI-style vulnerability intelligence dashboards and designed specifically for Yocto-based systems.
 
 ---
 
@@ -32,7 +30,7 @@ specifically for Yocto-based systems.
 ### Issues View
 <img src="assets/screenshots/issues.png" alt="Issues View" width="100%">
 
-### GTI-style CVE View
+### CVE View
 <img src="assets/screenshots/cve-view.png" alt="CVE View" width="100%">
 
 ---
@@ -79,4 +77,4 @@ Embedded Linux developers, Yocto maintainers, security engineers, and cybersecur
 
 ## License
 
-Internal / personal usage. Update if open-sourcing.
+Internal/personal usage. Could you please update if open-sourcing?
