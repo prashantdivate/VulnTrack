@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Yocto CVE Report (Local)</title>
 
-  <!-- ✅ External CSS -->
+  <!-- External CSS -->
   <link rel="stylesheet" href="style.css">
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
@@ -16,7 +16,7 @@
   <div class="header-inner">
     <div class="h-left">
       <div class="h-title">
-        <span id="reportTitle">VulnTrack Report</span>
+        <span class="appTitle" id="reportTitle">VulnTrack Report</span>
         <div class="compatibility-badges">
           <span class="badge">
             <img src="https://www.yoctoproject.org/wp-content/uploads/sites/32/2023/09/YoctoProject_Logo_RGB_White_small.svg" alt="Yocto Logo" height="30">
@@ -42,13 +42,13 @@
     <span class="chip">Load <strong>cve-summary.json</strong> to view</span>
   </div>
 
-  <!-- ✅ CLEAN tabs: remove empty placeholders (IOCs/History/TTPs/Reporting/Community) -->
+  <!-- Tabs (removed: IoC/History/TTPs/Reporting/Community) -->
   <div class="tabs">
     <div class="tab active" data-page="summary">Summary</div>
-    <div class="tab" data-page="products">Products & Fixes</div>
-    <div class="tab" data-page="sources">Sources</div>
     <div class="tab" data-page="packages">Packages</div>
     <div class="tab" data-page="issues">Issues</div>
+    <div class="tab" data-page="sources">Sources</div>
+    <div class="tab" data-page="products">Products & Fixes</div>
   </div>
 </header>
 
@@ -77,17 +77,21 @@
 
         <h3 class="panel-title">Top CVEs (by severity)</h3>
         <div class="tableWrap">
-          <table>
+          <table class="tableTight">
             <thead>
               <tr>
-                <th style="width:140px">CVE</th>
-                <th style="width:120px">Severity</th>
+                <th style="width:160px">CVE</th>
+                <th style="width:140px">Severity</th>
                 <th>Summary</th>
-                <th style="width:110px">Status</th>
+                <th style="width:120px">Status</th>
               </tr>
             </thead>
             <tbody id="topCvesBody"></tbody>
           </table>
+        </div>
+
+        <div class="muted tipLine">
+          Tip: Click any CVE to open the detailed CVE info (Yocto + NVD + EPSS).
         </div>
       </div>
 
@@ -107,30 +111,30 @@
           <div class="kv"><div class="k">Highest CVSS v3</div><div class="v" id="maxCvss3">—</div></div>
           <div class="kv"><div class="k">Highest CVSS v2</div><div class="v" id="maxCvss2">—</div></div>
           <div class="kv"><div class="k">Most common vector</div><div class="v" id="commonVector">—</div></div>
-          <div class="kv"><div class="k">Notes</div><div class="v" style="font-weight:700;color:var(--muted)">Yocto JSON does not include EPSS/KEV/exploit intel by default.</div></div>
+          <div class="kv"><div class="k">Notes</div><div class="v" style="font-weight:700;color:var(--muted)">Yocto JSON does not include EPSS/KEV/exploit info by default.</div></div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ===== Products & Fixes (Yocto-fillable) ===== -->
+  <!-- ===== Products & Fixes ===== -->
   <section class="page" id="page-products">
     <div class="panel">
       <h3 class="panel-title">Products & Fixes</h3>
       <div class="muted">
-        This view is derived locally from Yocto package name/version/layer + issue status (Patched / Unpatched / Ignored).
+        Derived locally from Yocto package name/version/layer + issue status (Patched / Unpatched / Ignored).
       </div>
 
       <div style="height:12px"></div>
 
       <div class="tableWrap">
-        <table>
+        <table class="tableTight">
           <thead>
             <tr>
-              <th style="width:220px">Package</th>
+              <th style="width:240px">Package</th>
               <th style="width:120px">Version</th>
               <th style="width:220px">Layer</th>
-              <th style="width:120px">Worst status</th>
+              <th style="width:140px">Worst status</th>
               <th>Top CVEs (by score)</th>
             </tr>
           </thead>
@@ -146,21 +150,21 @@
     </div>
   </section>
 
-  <!-- ===== Sources (Yocto-fillable if issue.link exists) ===== -->
+  <!-- ===== Sources ===== -->
   <section class="page" id="page-sources">
     <div class="panel">
       <h3 class="panel-title">Sources</h3>
       <div class="muted">
-        Displays reference links found in Yocto issues (if present in the JSON under <code>issue.link</code>).
+        Displays reference links found in Yocto issues (if present in <code>issue.link</code>).
       </div>
 
       <div style="height:12px"></div>
 
       <div class="tableWrap">
-        <table>
+        <table class="tableTight">
           <thead>
             <tr>
-              <th style="width:160px">CVE</th>
+              <th style="width:180px">CVE</th>
               <th style="width:240px">Package</th>
               <th>Reference</th>
             </tr>
@@ -173,7 +177,7 @@
     </div>
   </section>
 
-  <!-- ===== Packages (your original) ===== -->
+  <!-- ===== Packages ===== -->
   <section class="page" id="page-packages">
     <div class="panel">
       <h3 class="panel-title">Packages</h3>
@@ -198,7 +202,7 @@
     </div>
   </section>
 
-  <!-- ===== Issues (your original) ===== -->
+  <!-- ===== Issues ===== -->
   <section class="page" id="page-issues">
     <div class="panel">
       <h3 class="panel-title">Issues</h3>
@@ -216,26 +220,124 @@
         <button class="btn" id="csvBtn">Export filtered CSV</button>
       </div>
 
-      <div class="grid2" style="grid-template-columns: 1.3fr .7fr;">
+      <div class="tableWrap">
+        <table class="tableTight">
+          <thead>
+            <tr>
+              <th style="width:180px">CVE</th>
+              <th style="width:140px">Severity</th>
+              <th style="width:260px">Package</th>
+              <th style="width:140px">Version</th>
+              <th style="width:140px">Status</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="muted tipLine">
+        Tip: Click any row to open the full CVE view.
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FULL-PAGE CVE VIEW (GTI-like) ===== -->
+  <section class="page" id="page-cve">
+    <div class="cveTopbar">
+      <button class="btn btnGhost" id="cveBackBtn">← Back</button>
+
+      <div class="cveHead">
+        <div class="cveTitleRow">
+          <div class="cveId" id="cveId">CVE-—</div>
+          <span id="cveSevPill"></span>
+          <span class="chip" id="cveStatusChip"><strong>Status</strong>: —</span>
+        </div>
+        <div class="cveMeta muted" id="cveMeta">
+          Published: — • Modified: — • EPSS: —
+        </div>
+      </div>
+
+      <div class="cveActions">
+        <a class="btn btnGhost" id="cveNvdBtn" href="#" target="_blank" rel="noopener">Open in NVD</a>
+        <button class="btn" id="cveRefreshBtn">Refresh intel</button>
+      </div>
+    </div>
+
+    <div class="grid2 cveGrid">
+      <div class="panel">
+        <h3 class="panel-title">Executive Summary</h3>
+        <div class="muted" id="cveExec">—</div>
+      </div>
+
+      <div class="panel">
+        <h3 class="panel-title">Risk snapshot</h3>
+        <div class="riskGrid">
+          <div class="riskCard">
+            <div class="k">CVSS Base (v3.1/v3)</div>
+            <div class="v" id="cveCvss3">—</div>
+            <div class="muted" id="cveCvss3Vec">—</div>
+          </div>
+          <div class="riskCard">
+            <div class="k">CVSS Base (v2)</div>
+            <div class="v" id="cveCvss2">—</div>
+            <div class="muted" id="cveCvss2Vec">—</div>
+          </div>
+          <div class="riskCard">
+            <div class="k">Exploitability</div>
+            <div class="v" id="cveExploit">—</div>
+            <div class="muted" id="cveExploitNote">—</div>
+          </div>
+          <div class="riskCard">
+            <div class="k">Impact</div>
+            <div class="v" id="cveImpact">—</div>
+            <div class="muted" id="cveImpactNote">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3 class="panel-title">Description (NVD)</h3>
+        <div class="muted" id="cveDesc">—</div>
+        <div class="muted smallNote" id="cveIntelNote"></div>
+      </div>
+
+      <div class="panel">
+        <h3 class="panel-title">EPSS (FIRST)</h3>
+        <div class="epssGrid">
+          <div class="epssCard">
+            <div class="k">Probability</div>
+            <div class="v" id="cveEpssProb">—</div>
+            <div class="muted">Likelihood of exploitation in next 30 days</div>
+          </div>
+          <div class="epssCard">
+            <div class="k">Percentile</div>
+            <div class="v" id="cveEpssPct">—</div>
+            <div class="muted">Compared to other CVEs</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel cveWide">
+        <h3 class="panel-title">Affected in this build (Yocto)</h3>
         <div class="tableWrap">
-          <table>
+          <table class="tableTight">
             <thead>
               <tr>
-                <th style="width:140px">CVE</th>
-                <th style="width:120px">Severity</th>
-                <th style="width:220px">Package</th>
-                <th style="width:110px">Version</th>
-                <th style="width:110px">Status</th>
+                <th style="width:260px">Package</th>
+                <th style="width:140px">Version</th>
+                <th style="width:220px">Layer</th>
+                <th style="width:140px">Status</th>
+                <th style="width:140px">Severity</th>
               </tr>
             </thead>
-            <tbody id="tbody"></tbody>
+            <tbody id="cveAffectedBody"></tbody>
           </table>
         </div>
+      </div>
 
-        <div class="panel" id="detailsPanel">
-          <h3 class="panel-title">Issue Details</h3>
-          <div class="muted">Click an issue row to view details.</div>
-        </div>
+      <div class="panel cveWide">
+        <h3 class="panel-title">Developer tips</h3>
+        <ul class="muted tips" id="cveTips"></ul>
       </div>
     </div>
   </section>
@@ -252,6 +354,7 @@
     const n = Number(String(x ?? "").trim());
     return Number.isFinite(n) ? n : 0;
   }
+
   function severityFrom(issue){
     const v3 = toNum(issue.scorev3);
     const v2 = toNum(issue.scorev2);
@@ -262,6 +365,7 @@
     if (s >  0.0) return "Low";
     return "None";
   }
+
   function sevColor(sev){
     switch(sev){
       case "Critical": return "rgba(255, 88, 120, 0.95)";
@@ -271,9 +375,33 @@
       default:         return "rgba(200, 200, 200, 0.85)";
     }
   }
+
   function sevBadge(sev){
     return `<span class="sevBadge"><span class="dot" style="background:${sevColor(sev)}"></span>${esc(sev)}</span>`;
   }
+
+  function cvssClass(score){
+    const s = toNum(score);
+    if (s >= 9.0) return "cvss crit";
+    if (s >= 7.0) return "cvss high";
+    if (s >= 4.0) return "cvss med";
+    if (s >  0.0) return "cvss low";
+    return "cvss none";
+  }
+  function cvssLabel(score){
+    const s = toNum(score);
+    if (!s) return "NONE";
+    if (s >= 9.0) return "CRITICAL";
+    if (s >= 7.0) return "HIGH";
+    if (s >= 4.0) return "MEDIUM";
+    return "LOW";
+  }
+  function cvssPill(score){
+    const s = toNum(score);
+    if (!s) return `<span class="${cvssClass(0)}">—</span>`;
+    return `<span class="${cvssClass(s)}">${s.toFixed(1)} <span class="cvssTxt">(${cvssLabel(s)})</span></span>`;
+  }
+
   function downloadText(filename, text){
     const blob = new Blob([text], {type:"text/plain;charset=utf-8"});
     const url = URL.createObjectURL(blob);
@@ -317,6 +445,9 @@
   let filtered = [];
   let sevChart = null;
   let pkgChart = null;
+
+  let currentCve = null;
+  let currentCveIntel = { nvd: null, epss: null };
 
   // ===== Charts (crisp) =====
   function buildSevChart(counts){
@@ -372,25 +503,44 @@
     });
   }
 
-  // ===== Tabs + Back/Forward support =====
+  // ===== Tabs + Hash support =====
   function setTab(name, pushHash = true){
     document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active", t.dataset.page===name));
     document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
     const page = document.getElementById(`page-${name}`);
     if (page) page.classList.add("active");
 
-    if (pushHash) {
-      const newHash = `#${name}`;
-      if (location.hash !== newHash) history.pushState({tab:name}, "", newHash);
+    if (!pushHash) return;
+
+    // If CVE view, we store hash as #cve=CVE-XXXX-YYYY
+    if (name === "cve" && currentCve){
+      const newHash = `#cve=${encodeURIComponent(currentCve)}`;
+      if (location.hash !== newHash) history.pushState({tab:"cve", cve: currentCve}, "", newHash);
+      return;
     }
+
+    const newHash = `#${name}`;
+    if (location.hash !== newHash) history.pushState({tab:name}, "", newHash);
+  }
+
+  function parseHash(){
+    const h = (location.hash || "#summary").replace("#","");
+    if (h.startsWith("cve=")){
+      return { tab: "cve", cve: decodeURIComponent(h.slice(4)) };
+    }
+    return { tab: h, cve: null };
   }
 
   function applyHashTab(){
-    const tab = (location.hash || "#summary").replace("#","");
-    const allowed = new Set([
-      "summary","products","sources","packages","issues"
-    ]);
-    setTab(allowed.has(tab) ? tab : "summary", false);
+    const { tab, cve } = parseHash();
+    const allowed = new Set(["summary","products","sources","packages","issues","cve"]);
+    const safeTab = allowed.has(tab) ? tab : "summary";
+    setTab(safeTab, false);
+
+    if (safeTab === "cve" && cve){
+      // open CVE view from hash
+      openCveView(cve, { pushHash: false, tryFetch: true });
+    }
   }
   window.addEventListener("popstate", applyHashTab);
   window.addEventListener("hashchange", applyHashTab);
@@ -399,7 +549,7 @@
     t.addEventListener("click", ()=>setTab(t.dataset.page, true));
   });
 
-  // ===== GTI-style (Yocto-fillable) renderers =====
+  // ===== GTI-style renderers =====
   function renderProductsAndFixes(){
     if (!pkgIndex.length){
       $("productsBody").innerHTML = `<tr><td colspan="5" class="muted">No data loaded.</td></tr>`;
@@ -452,12 +602,223 @@
     }
     $("sourcesBody").innerHTML = list.slice(0, 800).map(r=>`
       <tr>
-        <td><strong>${esc(r.cve)}</strong></td>
+        <td><strong class="linkLike" data-cve="${esc(r.cve)}">${esc(r.cve)}</strong></td>
         <td>${esc(r.pkg)}</td>
         <td><a class="link" href="${esc(r.link)}" target="_blank" rel="noopener">Open link</a></td>
       </tr>
     `).join("");
+
+    // Clicking CVE in Sources opens CVE view
+    $("sourcesBody").querySelectorAll(".linkLike").forEach(el=>{
+      el.addEventListener("click", ()=>{
+        const cve = el.getAttribute("data-cve");
+        openCveView(cve, { pushHash: true, tryFetch: true });
+      });
+    });
   }
+
+  // ===== CVE VIEW (full page) =====
+  function bestYoctoRowForCve(cve){
+    const list = rows.filter(r=>r.cve === cve);
+    if (!list.length) return null;
+    const rank = (sev)=> ({Critical:4,High:3,Medium:2,Low:1,None:0}[sev] ?? 0);
+    return [...list].sort((a,b)=>{
+      const ra = rank(a.sev), rb = rank(b.sev);
+      if (rb !== ra) return rb - ra;
+      const sa = Math.max(toNum(a.scorev3), toNum(a.scorev2));
+      const sb = Math.max(toNum(b.scorev3), toNum(b.scorev2));
+      return sb - sa;
+    })[0];
+  }
+
+  function renderCveAffected(cve){
+    const list = rows.filter(r=>r.cve === cve);
+    if (!list.length){
+      $("cveAffectedBody").innerHTML = `<tr><td colspan="5" class="muted">This CVE was not found in the currently loaded Yocto JSON.</td></tr>`;
+      return;
+    }
+    $("cveAffectedBody").innerHTML = list.map(r=>`
+      <tr>
+        <td><strong>${esc(r.pkg)}</strong></td>
+        <td>${esc(r.pkgVersion || "—")}</td>
+        <td>${esc(r.layer || "—")}</td>
+        <td>${esc(r.status || "—")}</td>
+        <td>${sevBadge(r.sev)}</td>
+      </tr>
+    `).join("");
+  }
+
+  function renderCveTips(cve){
+    const r = bestYoctoRowForCve(cve);
+    const tips = r ? developerTipsFor(r) : ["Load Yocto JSON to see build-specific tips for this CVE."];
+    $("cveTips").innerHTML = tips.map(t=>`<li>${esc(t)}</li>`).join("");
+  }
+
+  function renderCveHeaderFromYocto(cve){
+    const r = bestYoctoRowForCve(cve);
+
+    $("cveId").textContent = cve;
+    $("cveStatusChip").innerHTML = `<strong>Status</strong>: ${esc(r?.status || "—")}`;
+    $("cveSevPill").innerHTML = r ? sevBadge(r.sev) : sevBadge("None");
+
+    // Executive summary defaults to Yocto summary
+    $("cveExec").textContent = r?.summary ? r.summary : "No Yocto summary available for this CVE in the loaded JSON.";
+    $("cveNvdBtn").href = `https://nvd.nist.gov/vuln/detail/${encodeURIComponent(cve)}`;
+
+    // Placeholders until intel is fetched
+    $("cveMeta").textContent = `Published: — • Modified: — • EPSS: —`;
+    $("cveDesc").textContent = "—";
+    $("cveIntelNote").textContent = "";
+
+    // CVSS pills (prefer yocto score display right away)
+    const s3 = toNum(r?.scorev3);
+    const s2 = toNum(r?.scorev2);
+    $("cveCvss3").innerHTML = s3 ? cvssPill(s3) : `<span class="cvss none">—</span>`;
+    $("cveCvss2").innerHTML = s2 ? cvssPill(s2) : `<span class="cvss none">—</span>`;
+    $("cveCvss3Vec").textContent = r?.vector ? r.vector : "—";
+    $("cveCvss2Vec").textContent = r?.vector ? r.vector : "—";
+
+    $("cveExploit").textContent = "—";
+    $("cveExploitNote").textContent = "From NVD if available";
+    $("cveImpact").textContent = "—";
+    $("cveImpactNote").textContent = "From NVD if available";
+
+    $("cveEpssProb").textContent = "—";
+    $("cveEpssPct").textContent = "—";
+
+    renderCveAffected(cve);
+    renderCveTips(cve);
+  }
+
+  function pickNvdMetric(nvd){
+    // NVD v2.0: metrics may have cvssMetricV31, cvssMetricV30, cvssMetricV2, etc.
+    const m = nvd?.vulnerabilities?.[0]?.cve?.metrics || {};
+    const v31 = m.cvssMetricV31?.[0];
+    const v30 = m.cvssMetricV30?.[0];
+    const v2  = m.cvssMetricV2?.[0];
+    return { v31, v30, v2 };
+  }
+
+  function pickNvdDesc(nvd){
+    const d = nvd?.vulnerabilities?.[0]?.cve?.descriptions || [];
+    return d.find(x=>x.lang==="en")?.value || d[0]?.value || "";
+  }
+
+  async function fetchNvd(cve){
+    // NVD API (may rate-limit; CORS usually OK but depends)
+    const url = `https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=${encodeURIComponent(cve)}`;
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error(`NVD fetch failed (${res.status})`);
+    return await res.json();
+  }
+
+  async function fetchEpss(cve){
+    const url = `https://api.first.org/data/v1/epss?cve=${encodeURIComponent(cve)}`;
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error(`EPSS fetch failed (${res.status})`);
+    return await res.json();
+  }
+
+  function renderCveIntel(cve, nvd, epss){
+    // NVD
+    if (nvd){
+      const pub = nvd?.vulnerabilities?.[0]?.cve?.published || "—";
+      const mod = nvd?.vulnerabilities?.[0]?.cve?.lastModified || "—";
+      const desc = pickNvdDesc(nvd);
+
+      const { v31, v30, v2 } = pickNvdMetric(nvd);
+      const v3m = v31 || v30;
+      const v3 = v3m?.cvssData;
+      const v2d = v2?.cvssData;
+
+      if (desc) $("cveDesc").textContent = desc;
+
+      // CVSS v3
+      if (v3?.baseScore != null){
+        $("cveCvss3").innerHTML = cvssPill(v3.baseScore);
+        $("cveCvss3Vec").textContent = v3.vectorString || "—";
+      }
+
+      // CVSS v2
+      if (v2d?.baseScore != null){
+        $("cveCvss2").innerHTML = cvssPill(v2d.baseScore);
+        $("cveCvss2Vec").textContent = v2d.vectorString || "—";
+      }
+
+      // Exploitability / Impact (NVD provides some subscores)
+      const exploit = v3m?.exploitabilityScore ?? v2?.exploitabilityScore;
+      const impact  = v3m?.impactScore ?? v2?.impactScore;
+
+      $("cveExploit").textContent = exploit != null ? String(exploit) : "—";
+      $("cveImpact").textContent  = impact  != null ? String(impact)  : "—";
+
+      // Meta line updated after EPSS too
+      const epssText = epss?.data?.[0]?.epss ? `${(Number(epss.data[0].epss)*100).toFixed(2)}%` : "—";
+      const pctText  = epss?.data?.[0]?.percentile ? `${(Number(epss.data[0].percentile)*100).toFixed(2)}%` : "—";
+      $("cveMeta").textContent = `Published: ${pub} • Modified: ${mod} • EPSS: ${epssText} (pct ${pctText})`;
+    }
+
+    // EPSS cards
+    if (epss?.data?.[0]){
+      const p = Number(epss.data[0].epss);
+      const pct = Number(epss.data[0].percentile);
+      $("cveEpssProb").textContent = Number.isFinite(p) ? `${(p*100).toFixed(2)}%` : "—";
+      $("cveEpssPct").textContent  = Number.isFinite(pct) ? `${(pct*100).toFixed(2)}%` : "—";
+    }
+  }
+
+  async function loadCveIntel(cve){
+    $("cveIntelNote").textContent = "Fetching NVD + EPSS…";
+    let nvd = null, epss = null;
+
+    try {
+      // parallel fetch
+      const [nvdRes, epssRes] = await Promise.allSettled([fetchNvd(cve), fetchEpss(cve)]);
+      if (nvdRes.status === "fulfilled") nvd = nvdRes.value;
+      if (epssRes.status === "fulfilled") epss = epssRes.value;
+
+      currentCveIntel = { nvd, epss };
+
+      if (!nvd && !epss){
+        $("cveIntelNote").textContent =
+          "Could not fetch external intel (blocked by network/CORS or rate-limited). Showing Yocto-only data.";
+      } else if (!nvd){
+        $("cveIntelNote").textContent =
+          "NVD data not available right now (rate-limit/CORS). Showing Yocto + EPSS.";
+      } else if (!epss){
+        $("cveIntelNote").textContent =
+          "EPSS not available right now (network/CORS). Showing Yocto + NVD.";
+      } else {
+        $("cveIntelNote").textContent = "External intel loaded (NVD + EPSS).";
+      }
+
+      renderCveIntel(cve, nvd, epss);
+    } catch (e){
+      $("cveIntelNote").textContent =
+        "Could not fetch external intel. Showing Yocto-only data.";
+    }
+  }
+
+  function openCveView(cve, opts={ pushHash:true, tryFetch:true }){
+    currentCve = cve;
+    renderCveHeaderFromYocto(cve);
+    setTab("cve", opts.pushHash);
+
+    if (opts.tryFetch){
+      loadCveIntel(cve);
+    }
+  }
+
+  $("cveBackBtn").addEventListener("click", ()=>{
+    // Prefer browser history back if it returns to previous tab
+    if (history.length > 1) history.back();
+    else setTab("issues", true);
+  });
+
+  $("cveRefreshBtn").addEventListener("click", ()=>{
+    if (!currentCve) return;
+    loadCveIntel(currentCve);
+  });
 
   // ===== Parsing Yocto cve-summary.json =====
   function buildFromYocto(obj){
@@ -581,7 +942,7 @@
     for (const r of rows) pkgCounts[r.pkg] = (pkgCounts[r.pkg]||0)+1;
     buildPkgChart(pkgCounts);
 
-    // Top CVEs table
+    // Top CVEs table (clean summary clamp)
     const top = [...rows].sort((a,b)=>{
       const rank = (sev)=> ({Critical:4,High:3,Medium:2,Low:1,None:0}[sev] ?? 0);
       const ra = rank(a.sev), rb = rank(b.sev);
@@ -592,22 +953,19 @@
     }).slice(0, 12);
 
     $("topCvesBody").innerHTML = top.map(r=>`
-      <tr data-cve="${esc(r.cve)}" data-pkg="${esc(r.pkg)}">
-        <td><strong>${esc(r.cve)}</strong></td>
+      <tr class="rowLink" data-cve="${esc(r.cve)}">
+        <td><strong class="linkLike">${esc(r.cve)}</strong></td>
         <td>${sevBadge(r.sev)}</td>
-        <td class="muted">${esc(r.summary || "")}</td>
+        <td><div class="summaryClamp">${esc(r.summary || "")}</div></td>
         <td>${esc(r.status)}</td>
       </tr>
     `).join("");
 
+    // Direct open CVE view
     $("topCvesBody").querySelectorAll("tr").forEach(tr=>{
       tr.addEventListener("click", ()=>{
         const cve = tr.getAttribute("data-cve");
-        setTab("issues");
-        $("q").value = cve;
-        applyIssueFilters();
-        const first = filtered[0];
-        if (first) renderIssueDetails(first);
+        openCveView(cve, { pushHash: true, tryFetch: true });
       });
     });
 
@@ -621,12 +979,12 @@
     $("q").value = ""; $("sevFilter").value=""; $("statusFilter").value="";
     filtered = [...rows];
     renderIssuesTable();
-    $("detailsPanel").innerHTML = `<h3 class="panel-title">Issue Details</h3><div class="muted">Click an issue row to view details.</div>`;
 
-    // Fill Yocto derived views
+    // Fill derived views
     renderProductsAndFixes();
     renderSources();
 
+    // After load, honor hash (maybe #cve=...) or default summary
     applyHashTab();
   }
 
@@ -695,43 +1053,39 @@
       <div class="muted"><strong>${esc(pkgName)}</strong> • version: ${esc(pkgMeta?.version || "—")} • layer: ${esc(pkgMeta?.layer || "—")} • issues: ${issues.length}</div>
       <div style="height:12px"></div>
       <div class="tableWrap">
-        <table>
+        <table class="tableTight">
           <thead>
             <tr>
-              <th style="width:140px">CVE</th>
-              <th style="width:120px">Severity</th>
+              <th style="width:180px">CVE</th>
+              <th style="width:140px">Severity</th>
               <th>Summary</th>
-              <th style="width:110px">Status</th>
-              <th style="width:90px">CVSS</th>
+              <th style="width:140px">Status</th>
+              <th style="width:140px">CVSS</th>
             </tr>
           </thead>
           <tbody>
             ${top.slice(0, 50).map(r=>{
               const score = Math.max(toNum(r.scorev3), toNum(r.scorev2));
               return `
-                <tr data-cve="${esc(r.cve)}">
-                  <td><strong>${esc(r.cve)}</strong></td>
+                <tr class="rowLink" data-cve="${esc(r.cve)}">
+                  <td><strong class="linkLike">${esc(r.cve)}</strong></td>
                   <td>${sevBadge(r.sev)}</td>
-                  <td class="muted">${esc(r.summary || "")}</td>
+                  <td><div class="summaryClamp">${esc(r.summary || "")}</div></td>
                   <td>${esc(r.status)}</td>
-                  <td>${score ? score.toFixed(1) : "—"}</td>
+                  <td>${score ? cvssPill(score) : `<span class="cvss none">—</span>`}</td>
                 </tr>
               `;
             }).join("")}
           </tbody>
         </table>
       </div>
-      <div class="muted" style="margin-top:10px;">Showing up to 50 issues. Use the Issues tab for full search/export.</div>
+      <div class="muted" style="margin-top:10px;">Showing up to 50 issues. Click a CVE to open the full CVE view.</div>
     `;
 
-    $("pkgDetailPanel").querySelectorAll("tr").forEach(tr=>{
+    $("pkgDetailPanel").querySelectorAll("tr[data-cve]").forEach(tr=>{
       tr.addEventListener("click", ()=>{
         const cve = tr.getAttribute("data-cve");
-        setTab("issues");
-        $("q").value = cve;
-        applyIssueFilters();
-        const first = filtered[0];
-        if (first) renderIssueDetails(first);
+        openCveView(cve, { pushHash: true, tryFetch: true });
       });
     });
   }
@@ -758,8 +1112,8 @@
 
   function renderIssuesTable(){
     $("tbody").innerHTML = filtered.map(r=>`
-      <tr data-cve="${esc(r.cve)}" data-pkg="${esc(r.pkg)}">
-        <td><strong>${esc(r.cve)}</strong></td>
+      <tr class="rowLink" data-cve="${esc(r.cve)}">
+        <td><strong class="linkLike">${esc(r.cve)}</strong></td>
         <td>${sevBadge(r.sev)}</td>
         <td>${esc(r.pkg)}</td>
         <td>${esc(r.pkgVersion || "")}</td>
@@ -767,48 +1121,13 @@
       </tr>
     `).join("");
 
+    // Direct open CVE view from Issues tab (no extra step)
     $("tbody").querySelectorAll("tr").forEach(tr=>{
       tr.addEventListener("click", ()=>{
         const cve = tr.getAttribute("data-cve");
-        const pkg = tr.getAttribute("data-pkg");
-        const r = filtered.find(x=>x.cve===cve && x.pkg===pkg) || filtered.find(x=>x.cve===cve) || filtered[0];
-        if (r) renderIssueDetails(r);
+        openCveView(cve, { pushHash: true, tryFetch: true });
       });
     });
-  }
-
-  function renderIssueDetails(r){
-    const tips = developerTipsFor(r);
-    const tipsHtml = tips.map(t=>`<li>${esc(t)}</li>`).join("");
-
-    $("detailsPanel").innerHTML = `
-      <h3 class="panel-title">Issue Details</h3>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-        <div style="font-weight:900;font-size:16px;">${esc(r.cve)}</div>
-        ${sevBadge(r.sev)}
-        <span class="chip"><strong>Status</strong>: ${esc(r.status||"—")}</span>
-      </div>
-      <div class="muted" style="margin-top:8px;">
-        Package: <strong>${esc(r.pkg)}</strong> ${esc(r.pkgVersion||"")} • Layer: ${esc(r.layer||"—")}
-      </div>
-      <div class="muted" style="margin-top:10px;">${esc(r.summary || "")}</div>
-
-      <div style="height:12px"></div>
-      <div class="kvgrid">
-        <div class="kv"><div class="k">CVSS v3</div><div class="v">${esc(r.scorev3 || "—")}</div></div>
-        <div class="kv"><div class="k">CVSS v2</div><div class="v">${esc(r.scorev2 || "—")}</div></div>
-        <div class="kv"><div class="k">Vector</div><div class="v">${esc(r.vector || "—")}</div></div>
-        <div class="kv"><div class="k">Reference</div><div class="v">${r.link ? `<a class="link" href="${esc(r.link)}" target="_blank" rel="noopener">Open link</a>` : "—"}</div></div>
-      </div>
-
-      <div style="height:14px"></div>
-      <h3 class="panel-title">Developer Tips</h3>
-      <ul class="muted tips">${tipsHtml}</ul>
-
-      <div class="muted" style="margin-top:10px;">
-        Note: GTI-style fields like “Exploit availability / Exploited in the wild / EPSS / KEV” require external intelligence feeds (not present in Yocto JSON).
-      </div>
-    `;
   }
 
   // ===== Events =====
@@ -827,7 +1146,9 @@
 
   $("resetBtn").addEventListener("click", ()=>{
     yocto=null; rows=[]; pkgIndex=[]; filtered=[];
-    $("reportTitle").textContent = "Vulnerability Report";
+    currentCve = null; currentCveIntel = { nvd:null, epss:null };
+
+    $("reportTitle").textContent = "VulnTrack Report";
     $("createdLine").textContent = "Report generated: —";
     $("pkgLine").textContent = "Packages: —";
     $("issueLine").textContent = "Issues: —";
@@ -838,7 +1159,6 @@
     $("pkgList").innerHTML = "";
     $("pkgDetailPanel").innerHTML = `<h3 class="panel-title">Package Details</h3><div class="muted">Select a package to see its issues.</div>`;
     $("tbody").innerHTML = "";
-    $("detailsPanel").innerHTML = `<h3 class="panel-title">Issue Details</h3><div class="muted">Click an issue row to view details.</div>`;
     $("q").value=""; $("sevFilter").value=""; $("statusFilter").value="";
     $("pkgSearch").value=""; $("pkgLayerFilter").innerHTML = `<option value="">All layers</option>`;
 
@@ -849,9 +1169,9 @@
     if (pkgChart) pkgChart.destroy();
     sevChart = pkgChart = null;
 
+    // reset hash
     history.pushState({tab:"summary"}, "", "#summary");
     setTab("summary", false);
-
     $("file").value="";
   });
 
