@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo/vulntrack-banner.png" width="100%" alt="VulnTrack">
+  <img src="readme-assets/logo/vulntrack-banner.png" width="100%" alt="VulnTrack">
 </p>
 
 <p align="center">
@@ -31,13 +31,13 @@ Inspired by GTI-style vulnerability intelligence dashboards and designed specifi
 ## Demo
 
 ### Summary Dashboard
-<img src="assets/screenshots/summary.png" alt="Summary View" width="100%">
+<img src="readme-assets/screenshots/summary.png" alt="Summary View" width="100%">
 
 ### Issues View
-<img src="assets/screenshots/issues.png" alt="Issues View" width="100%">
+<img src="readme-assets/screenshots/issues.png" alt="Issues View" width="100%">
 
 ### CVE View
-<img src="assets/screenshots/cve-view.png" alt="CVE View" width="100%">
+<img src="readme-assets/screenshots/cve-view.png" alt="CVE View" width="100%">
 
 ---
 
@@ -65,6 +65,10 @@ Then open http://localhost:8080
 5. Explore Summary, Packages, Issues, and other tabs
 6. Click CVEs for details
 7. Export CSV if needed
+8. To analyze the SBOM generated from yocto build
+9. Click on SBOM option from the tabs
+10. Click on choose SBOM
+11. Upload the json file and click on individual component for more details
 
 ---
 
