@@ -21,7 +21,13 @@ It runs entirely on the client side using HTML, CSS, and JavaScript — no backe
 Inspired by GTI-style vulnerability intelligence dashboards and designed specifically for Yocto-based systems.
 
 ---
+## Features and Support
 
+- [x] Yocto build CVE analysis
+- [x] SBOM analysis, Supports modern SPDX 3.0.1
+- [ ] Allow customozation for security and license profiles of SBOM
+
+---
 ## Demo
 
 ### Summary Dashboard
