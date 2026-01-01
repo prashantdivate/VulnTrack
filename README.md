@@ -25,16 +25,20 @@ Inspired by GTI-style vulnerability intelligence dashboards and designed specifi
 
 - [x] Yocto build CVE analysis
 - [x] SBOM analysis, Supports modern SPDX 3.0.1
-- [ ] Allow customozation for security and license profiles of SBOM
+- [ ] Allow customization for security and license profiles of SBOM
 
 ---
 ## Demo
+## [Live site](https://prashantdivate.github.io/VulnTrack/)
+
+---
+## Snapshots
 
 ### Summary Dashboard
 <img src="readme-assets/screenshots/summary.png" alt="Summary View" width="100%">
 
-### Issues View
-<img src="readme-assets/screenshots/issues.png" alt="Issues View" width="100%">
+### Packages View
+<img src="readme-assets/screenshots/packages.png" alt="Issues View" width="100%">
 
 ### CVE View
 <img src="readme-assets/screenshots/cve-view.png" alt="CVE View" width="100%">
@@ -87,4 +91,4 @@ Embedded Linux developers, Yocto maintainers, security engineers, and cybersecur
 
 ## License
 
-Internal/personal usage. Could you please update if open-sourcing?
+Internal/personal usage. Don't open source without permission.
