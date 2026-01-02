@@ -60,6 +60,15 @@ Then open http://localhost:8080
 
 ---
 
+## Yocto customization
+Add the below configurations in the `build/conf/local.conf` file in the yocto build
+```
+INHERIT += " cve-check create-spdx "
+CVE_SOCKET_TIMEOUT = "180"
+include conf/distro/include/cve-extra-exclusions.inc
+```
+---
+
 ## How to Use
 
 1. Generate Yocto CVE data (cve-summary.json)
