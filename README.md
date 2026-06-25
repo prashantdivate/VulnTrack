@@ -91,40 +91,16 @@ https://prashantdivate.github.io/VulnTrack/
 
 ---
 
-## Screenshots
+## Snapshots
 
 ### Summary Dashboard
-
-Add your summary dashboard screenshot here.
-
-```markdown
-![VulnTrack Summary Dashboard](readme-assets/summary-dashboard.png)
-```
+<img src="readme-assets/screenshots/summary.png" alt="Summary View" width="100%">
 
 ### Packages View
+<img src="readme-assets/screenshots/packages.png" alt="Issues View" width="100%">
 
-Add your packages view screenshot here.
-
-```markdown
-![VulnTrack Packages View](readme-assets/packages-view.png)
-```
-
-### CVE Issues View
-
-Add your CVE issues screenshot here.
-
-```markdown
-![VulnTrack CVE Issues View](readme-assets/cve-issues-view.png)
-```
-
-### Report Export
-
-Add your report export screenshot here.
-
-```markdown
-![VulnTrack Report Export](readme-assets/report-export.png)
-```
-
+### CVE View
+<img src="readme-assets/screenshots/cve-view.png" alt="CVE View" width="100%">
 ---
 
 ## How VulnTrack Works
