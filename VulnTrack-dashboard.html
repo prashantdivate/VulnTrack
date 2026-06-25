@@ -6,9 +6,10 @@
   <title>VulnTrack Report</title>
 
   <!-- External CSS -->
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=2">
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="report-generation.js?v=3"></script>
 
   <!-- Minimal CVSS color helpers (kept here to avoid forcing style.css edits) -->
   <style>
@@ -60,6 +61,20 @@
 
   <div class="chipbar" id="chipbar">
     <span class="chip">Load <strong>cve-summary.json</strong> to view</span>
+  </div>
+
+  <div class="report-toolbar" id="exportReportBar" hidden>
+    <div class="export-menu">
+      <button class="btn exportBtn" id="exportReportBtn" type="button" aria-haspopup="true" aria-expanded="false">
+        Export Report <span class="chev" aria-hidden="true">v</span>
+      </button>
+      <div class="export-dropdown" id="exportDropdown" role="menu">
+        <button type="button" role="menuitem" data-format="html">HTML report</button>
+        <button type="button" role="menuitem" data-format="pdf">PDF report</button>
+        <button type="button" role="menuitem" data-format="md">Markdown report</button>
+        <button type="button" role="menuitem" data-format="json">JSON summary</button>
+      </div>
+    </div>
   </div>
 
   <div class="tabs">
@@ -440,8 +455,20 @@
     return `<span class="sevBadge"><span class="dot" style="background:${sevColor(sev)}"></span>${esc(sev)}</span>`;
   }
 
-  function downloadText(filename, text){
-    const blob = new Blob([text], {type:"text/plain;charset=utf-8"});
+  function normalizePackageIssues(pkg){
+    const raw = pkg.issue ?? pkg.issues ?? [];
+    if (Array.isArray(raw)) return raw;
+    if (raw && typeof raw === "object"){
+      return Object.entries(raw).map(([id, issue])=>{
+        if (issue && typeof issue === "object") return { id, ...issue };
+        return { id, summary: String(issue ?? "") };
+      });
+    }
+    return [];
+  }
+
+  function downloadText(filename, text, type="text/plain;charset=utf-8"){
+    const blob = new Blob([text], {type});
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url; a.download = filename;
@@ -668,7 +695,7 @@
       const pkgVer = p.version ?? "";
       layerSet.add(pkgLayer);
 
-      const issues = Array.isArray(p.issue) ? p.issue : [];
+      const issues = normalizePackageIssues(p);
       const sevCounts = {Critical:0,High:0,Medium:0,Low:0,None:0};
       let patched = 0, unpatched = 0, ignored = 0;
 
@@ -703,16 +730,14 @@
         });
       }
 
-      if (issues.length){
-        pkgIndex.push({
-          name: pkgName,
-          version: pkgVer,
-          layer: pkgLayer,
-          total: issues.length,
-          sevCounts,
-          patched, unpatched, ignored
-        });
-      }
+      pkgIndex.push({
+        name: pkgName,
+        version: pkgVer,
+        layer: pkgLayer,
+        total: issues.length,
+        sevCounts,
+        patched, unpatched, ignored
+      });
     }
 
     $("createdLine").textContent = `Report generated: ${nowISO()}`;
@@ -777,14 +802,14 @@
       return sb - sa;
     }).slice(0, 12);
 
-    $("topCvesBody").innerHTML = top.map(r=>`
+    $("topCvesBody").innerHTML = top.length ? top.map(r=>`
       <tr data-cve="${esc(r.cve)}">
         <td><strong>${esc(r.cve)}</strong></td>
         <td>${sevBadge(r.sev)}</td>
         <td class="muted">${esc(r.summary || "")}</td>
         <td>${esc(r.status)}</td>
       </tr>
-    `).join("");
+    `).join("") : `<tr><td colspan="4" class="muted">No CVE issues found in this JSON. The package data was parsed, but there are no vulnerabilities to rank.</td></tr>`;
 
     $("topCvesBody").querySelectorAll("tr").forEach(tr=>{
       tr.addEventListener("click", ()=>{
@@ -804,6 +829,8 @@
 
     renderProductsAndFixes();
     renderSources();
+
+    $("exportReportBar").hidden = false;
 
     applyHashTab();
   }
@@ -931,6 +958,11 @@
   }
 
   function renderIssuesTable(){
+    if (!filtered.length){
+      $("tbody").innerHTML = `<tr><td colspan="5" class="muted">No CVE issues match the current data or filters.</td></tr>`;
+      return;
+    }
+
     $("tbody").innerHTML = filtered.map(r=>`
       <tr data-cve="${esc(r.cve)}">
         <td><strong>${esc(r.cve)}</strong></td>
@@ -1346,13 +1378,24 @@
   $("file").addEventListener("change", async (e)=>{
     const f = e.target.files?.[0];
     if (!f) return;
-    const text = await f.text();
-    const obj = JSON.parse(text);
+    let obj = null;
+
+    try{
+      const text = await f.text();
+      obj = JSON.parse(text);
+    }catch(err){
+      console.error(err);
+      $("exportReportBar").hidden = true;
+      alert("Failed to parse JSON. Please choose a valid Yocto cve-summary.json file.");
+      return;
+    }
 
     if (!obj || !Array.isArray(obj.package)){
       alert("This doesn't look like Yocto cve-summary.json (expected top-level { package: [...] }).");
+      $("exportReportBar").hidden = true;
       return;
     }
+
     buildFromYocto(obj);
   });
 
@@ -1397,6 +1440,9 @@
     $("pkgLine").textContent = "Packages: —";
     $("issueLine").textContent = "Issues: —";
     $("chipbar").innerHTML = `<span class="chip">Load <strong>cve-summary.json</strong> to view</span>`;
+    $("exportReportBar").hidden = true;
+    $("exportReportBtn").setAttribute("aria-expanded", "false");
+    $("exportReportBtn").closest(".export-menu").classList.remove("open");
     $("schemaV").textContent = $("affPkgs").textContent = $("totalIssues").textContent = $("openIssues").textContent = "—";
     $("maxCvss3").textContent = $("maxCvss2").textContent = $("commonVector").textContent = "—";
     $("topCvesBody").innerHTML = "";
@@ -1444,6 +1490,40 @@
     downloadText("yocto-filtered-cves.csv", lines.join("\n"));
   });
 
+  $("exportReportBtn").addEventListener("click", (e)=>{
+    e.stopPropagation();
+    const menu = $("exportReportBtn").closest(".export-menu");
+    const isOpen = menu.classList.toggle("open");
+    $("exportReportBtn").setAttribute("aria-expanded", String(isOpen));
+  });
+
+  $("exportDropdown").querySelectorAll("[data-format]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const menu = $("exportReportBtn").closest(".export-menu");
+      menu.classList.remove("open");
+      $("exportReportBtn").setAttribute("aria-expanded", "false");
+      window.VulnTrackReportExporter.exportReport(btn.getAttribute("data-format"), {
+        yocto,
+        rows,
+        pkgIndex
+      });
+    });
+  });
+
+  document.addEventListener("click", ()=>{
+    const menu = $("exportReportBtn").closest(".export-menu");
+    menu.classList.remove("open");
+    $("exportReportBtn").setAttribute("aria-expanded", "false");
+  });
+
+  document.addEventListener("keydown", (e)=>{
+    if (e.key === "Escape"){
+      const menu = $("exportReportBtn").closest(".export-menu");
+      menu.classList.remove("open");
+      $("exportReportBtn").setAttribute("aria-expanded", "false");
+    }
+  });
+
   $("pkgSearch").addEventListener("input", renderPackagesList);
   $("pkgLayerFilter").addEventListener("change", renderPackagesList);
 
@@ -1454,4 +1534,3 @@
 
 </body>
 </html>
-
