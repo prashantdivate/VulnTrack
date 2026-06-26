@@ -4,7 +4,7 @@
   const SEVERITIES = ["Critical", "High", "Medium", "Low", "None"];
   const REPO_URL = "https://github.com/prashantdivate/VulnTrack";
   const MAINTAINER = "Prashant Divate";
-  const REPORT_TITLE = "VulnTrack Vulnerability Assessment";
+  const REPORT_TITLE = "VulnTrack Vulnerability Report";
 
   function esc(s){
     return String(s ?? "").replace(/[&<>"]/g, c=>({
