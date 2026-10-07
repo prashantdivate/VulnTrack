@@ -305,15 +305,6 @@
         <span id="sbomLoadText">Loading SBOM...</span>
       </div>
 
-      <div style="height:12px"></div>
-
-      <div class="kvgrid">
-        <div class="kv"><div class="k">Format</div><div class="v" id="sbomFormat">—</div></div>
-        <div class="kv"><div class="k">Components</div><div class="v" id="sbomCompCount">—</div></div>
-        <div class="kv"><div class="k">Relationship edges</div><div class="v" id="sbomDepCount">—</div></div>
-        <div class="kv"><div class="k">Top licenses</div><div class="v" id="sbomTopLic">—</div></div>
-      </div>
-
       <div style="height:14px"></div>
 
       <div id="sbomExplorer" class="sbomReport">
@@ -563,6 +554,7 @@
   let sbomSourceName = "";
   let sbomSortKey = "name";
   let sbomSortDir = 1;
+  let selectedSbomId = "";
 
   // ===== Charts =====
   function buildSevChart(counts){
@@ -1284,6 +1276,27 @@
     return [...new Set(lists.flat().filter(Boolean))];
   }
 
+  function isSpdxFileRef(ref){
+    return /(?:^|:)SPDXRef-PackagedFile-/.test(String(ref || ""));
+  }
+
+  function normalizeFilePath(path){
+    const text = String(path || "").replace(/\\/g, "/").replace(/^\/+/, "");
+    return text ? `/${text}` : "unknown";
+  }
+
+  function mergeInstalledFiles(...lists){
+    const seen = new Set();
+    const out = [];
+    for (const file of lists.flat().filter(Boolean)){
+      const key = file.id || file.path;
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push(file);
+    }
+    return out.sort((a,b)=>String(a.path || "").localeCompare(String(b.path || ""), undefined, {numeric:true, sensitivity:"base"}));
+  }
+
   function rawRecordsForComponent(c){
     if (Array.isArray(c.rawRecords) && c.rawRecords.length) return c.rawRecords;
     return c.raw ? [{
@@ -1367,6 +1380,7 @@
       const merged = {
         ...canonical,
         licenses: mergeUniqueValues(...group.map(c=>c.licenses || [])),
+        files: mergeInstalledFiles(...group.map(c=>c.files || [])),
         purl: group.find(c=>c.purl)?.purl || canonical.purl || "",
         supplier: group.find(c=>c.supplier)?.supplier || canonical.supplier || "",
         description: group.find(c=>c.description)?.description || canonical.description || "",
@@ -1411,19 +1425,44 @@
     const addComponent = (component)=>{
       if (!component.id) return;
       const existing = componentsById.get(component.id);
+      const files = mergeInstalledFiles(existing?.files || [], component.files || []);
+      const licenses = mergeUniqueValues(existing?.licenses || [], component.licenses || []);
+      const rawRecords = mergeRawRecordsForComponents(existing || {}, component);
       if (!existing || (existing.recordKind === "reference" && component.recordKind === "package")){
-        const rawRecords = mergeRawRecordsForComponents(existing || {}, component);
-        componentsById.set(component.id, { ...existing, ...component, ...(rawRecords.length ? { rawRecords } : {}) });
+        componentsById.set(component.id, {
+          ...existing,
+          ...component,
+          ...(licenses.length ? { licenses } : {}),
+          ...(files.length ? { files } : {}),
+          ...(rawRecords.length ? { rawRecords } : {})
+        });
         return;
       }
-      const rawRecords = mergeRawRecordsForComponents(existing, component);
       componentsById.set(component.id, {
         ...existing,
-        ...Object.fromEntries(Object.entries(component).filter(([,v])=>v !== "" && v !== undefined && !(Array.isArray(v) && !v.length))),
+        ...Object.fromEntries(Object.entries(component).filter(([,v])=>v !== "" && v !== null && v !== undefined && !(Array.isArray(v) && !v.length))),
         recordKind: existing.recordKind,
+        ...(licenses.length ? { licenses } : {}),
+        ...(files.length ? { files } : {}),
         ...(rawRecords.length ? { rawRecords } : {})
       });
     };
+
+    const filesById = new Map();
+    for (const f of (obj.files || [])){
+      const id = qualifySpdxRef(f.SPDXID || f.fileName || "", f._documentRef);
+      if (!id) continue;
+      filesById.set(id, {
+        id,
+        path: normalizeFilePath(f.fileName),
+        type: (f.fileTypes || []).join(", "),
+        license: cleanSpdxValue(f.licenseConcluded),
+        checksums: f.checksums || [],
+        copyright: cleanSpdxValue(f.copyrightText),
+        sourceDocument: f._sourceDocument || "",
+        sourceNamespace: obj.documentNamespace || ""
+      });
+    }
 
     for (const p of (obj.packages || [])){
       const id = qualifySpdxRef(p.SPDXID || p.name || `pkg:${p.name || "unknown"}@${p.versionInfo || ""}`, p._documentRef);
@@ -1447,12 +1486,19 @@
 
     const deps = new Map();
     const relations = [];
+    const containedFilesByComponent = new Map();
     for (const rel of (obj.relationships || [])){
       const a = qualifySpdxRef(rel.spdxElementId, rel._documentRef);
       const b = qualifySpdxRef(rel.relatedSpdxElement, rel._documentRef);
       const t = rel.relationshipType;
       if (!a || !b) continue;
       if (t === "DEPENDS_ON" || t === "CONTAINS" || t === "DYNAMIC_LINK" || t === "STATIC_LINK"){
+        if (t === "CONTAINS" && isSpdxFileRef(b) && filesById.has(b)){
+          const list = containedFilesByComponent.get(a) || [];
+          list.push(filesById.get(b));
+          containedFilesByComponent.set(a, list);
+          continue;
+        }
         if (isSpdxPackageRef(a)){
           addComponent({
             id: a,
@@ -1483,8 +1529,17 @@
         const arr = deps.get(a) || [];
         if (!arr.includes(b)) arr.push(b);
         deps.set(a, arr);
-        relations.push({ from: a, to: b, type: t });
+        if (!isSpdxFileRef(a) && !isSpdxFileRef(b)) relations.push({ from: a, to: b, type: t });
       }
+    }
+
+    for (const [id, files] of containedFilesByComponent){
+      addComponent({
+        id,
+        name: spdxPackageNameFromRef(id),
+        files: mergeInstalledFiles(files),
+        recordKind: "reference"
+      });
     }
 
     const collapsed = collapseEquivalentSpdxComponents([...componentsById.values()], relations);
@@ -1535,6 +1590,10 @@
       packages: objects.flatMap(obj=>{
         const documentRef = namespaceToDocRef.get(obj.documentNamespace) || "";
         return (obj.packages || []).map(p=>({ ...p, _documentRef: documentRef, _sourceDocument: obj._sourceName || obj.name || "" }));
+      }),
+      files: objects.flatMap(obj=>{
+        const documentRef = namespaceToDocRef.get(obj.documentNamespace) || "";
+        return (obj.files || []).map(f=>({ ...f, _documentRef: documentRef, _sourceDocument: obj._sourceName || obj.name || "" }));
       }),
       relationships: objects.flatMap(obj=>{
         const documentRef = namespaceToDocRef.get(obj.documentNamespace) || "";
@@ -1691,18 +1750,6 @@
     return [obj];
   }
 
-  function sbomTopLicenses(list){
-    const counts = {};
-    for (const c of list){
-      for (const l of (c.licenses || [])){
-        counts[l] = (counts[l] || 0) + 1;
-      }
-    }
-    const top = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0, 3);
-    if (!top.length) return "—";
-    return top.map(([k,v])=>`${k} (${v})`).join(", ");
-  }
-
   function countBy(values){
     const out = new Map();
     for (const v of values.filter(Boolean)) out.set(v, (out.get(v) || 0) + 1);
@@ -1735,6 +1782,66 @@
       <li><span class="truncate">${esc(name)}</span><strong>${count.toLocaleString()}</strong></li>
     `).join("") : `<li class="muted">${esc(emptyText)}</li>`;
     return `<div class="sbomMiniPanel"><h3 class="panel-title">${esc(title)}</h3><ul class="sbomCountList">${body}</ul></div>`;
+  }
+
+  function licenseNeedsReview(license){
+    return /\b(AGPL|GPL|LGPL|MPL|EPL|CDDL)-/i.test(String(license || ""));
+  }
+
+  function licenseIsCustom(license){
+    return /LicenseRef-|NOASSERTION|NONE/i.test(String(license || ""));
+  }
+
+  function sbomComplianceStats(){
+    const s = sbomMetadataStats();
+    const missingVersions = s.total - s.versions;
+    const missingLicenses = s.total - s.licenses;
+    const missingSuppliers = s.total - s.suppliers;
+    const customLicenseRefs = sbomComponents.filter(c=>(c.licenses || []).some(licenseIsCustom)).length;
+    const licenseReview = sbomComponents.filter(c=>(c.licenses || []).some(licenseNeedsReview)).length;
+    const metadataScore = s.total ? Math.floor(((s.versions + s.licenses + s.suppliers) / (s.total * 3)) * 100) : 0;
+    const blockers = missingLicenses + customLicenseRefs + s.refs;
+    const status = blockers ? "Needs review" : (metadataScore < 95 ? "Metadata gaps" : "Review ready");
+    const statusClass = blockers ? "bad" : (metadataScore < 95 || licenseReview ? "warn" : "good");
+    return { ...s, missingVersions, missingLicenses, missingSuppliers, customLicenseRefs, licenseReview, metadataScore, status, statusClass };
+  }
+
+  function renderComplianceMetric(label, value, detail, status){
+    return `
+      <div class="complianceMetric ${esc(status || "")}">
+        <div>
+          <strong>${esc(label)}</strong>
+          <div class="muted">${esc(detail)}</div>
+        </div>
+        <span>${esc(value)}</span>
+      </div>
+    `;
+  }
+
+  function renderCompliancePanel(){
+    const c = sbomComplianceStats();
+    return `
+      <div class="compliancePanel">
+        <div class="complianceHead">
+          <div>
+            <h3 class="panel-title">Compliance Readiness</h3>
+            <div class="muted">Derived from uploaded SBOM metadata. This is not a legal sign-off.</div>
+          </div>
+          <div class="readinessScore">
+            <strong>${c.metadataScore}%</strong>
+            <span class="chip ${esc(c.statusClass)}">${esc(c.status)}</span>
+          </div>
+        </div>
+        <div class="complianceGrid">
+          ${renderComplianceMetric("SPDX documents", (sbomDocuments || []).length.toLocaleString(), `${c.total.toLocaleString()} visible components`, "good")}
+          ${renderComplianceMetric("License coverage", `${c.licenses.toLocaleString()} / ${c.total.toLocaleString()}`, `${c.missingLicenses.toLocaleString()} components missing license`, c.missingLicenses ? "bad" : "good")}
+          ${renderComplianceMetric("Supplier coverage", `${c.suppliers.toLocaleString()} / ${c.total.toLocaleString()}`, `${c.missingSuppliers.toLocaleString()} components missing supplier`, c.missingSuppliers ? "warn" : "good")}
+          ${renderComplianceMetric("Version coverage", `${c.versions.toLocaleString()} / ${c.total.toLocaleString()}`, `${c.missingVersions.toLocaleString()} components missing version`, c.missingVersions ? "warn" : "good")}
+          ${renderComplianceMetric("License obligations", c.licenseReview.toLocaleString(), "Copyleft-style licenses to review", c.licenseReview ? "warn" : "good")}
+          ${renderComplianceMetric("Custom license refs", c.customLicenseRefs.toLocaleString(), "LicenseRef/NOASSERTION values", c.customLicenseRefs ? "bad" : "good")}
+        </div>
+      </div>
+    `;
   }
 
   function sbomMetadataStats(){
@@ -1810,12 +1917,13 @@
         <div class="sbomReportStats">
           <span class="chip">${esc(sbom?.format || "SBOM")}</span>
           <span class="chip">${total.toLocaleString()} components</span>
-          <span class="chip">${sbomRelations.length.toLocaleString()} relationships</span>
+          <span class="chip">${sbomRelations.length.toLocaleString()} package relationships</span>
           ${groupedRecords ? `<span class="chip">${groupedRecords.toLocaleString()} SPDX records grouped</span>` : ""}
         </div>
       </div>
 
       ${sparseNotice}
+      ${renderCompliancePanel()}
 
       <div class="sbomExplorerGrid">
         <div class="sbomMiniPanel">
@@ -1825,7 +1933,7 @@
           ${renderCoverage("Suppliers", suppliers, total)}
         </div>
         ${renderCountList("Record Types", recordCounts, "No records")}
-        ${renderCountList("Relationship Types", relationTypes, "No relationships in selected SBOM")}
+        ${renderCountList("Package Relationship Types", relationTypes, "No package dependency relationships in selected SBOM")}
         ${renderCountList("Licenses", licenseCounts, "No license values in selected SBOM")}
         ${renderCountList("Suppliers", supplierCounts, "No supplier values in selected SBOM")}
       </div>
@@ -1893,14 +2001,6 @@
     renderSbomTable();
   }
 
-  function renderSbomMeta(){
-    $("sbomFormat").textContent = sbom?.format || "—";
-    $("sbomCompCount").textContent = (sbomComponents.length || 0).toLocaleString();
-
-    $("sbomDepCount").textContent = (sbomRelations.length || 0).toLocaleString();
-    $("sbomTopLic").textContent = sbomTopLicenses(sbomComponents);
-  }
-
   function renderSbomTable(){
     const tb = $("sbomTbody");
     const head = $("sbomThead");
@@ -1935,6 +2035,7 @@
       const lic = (c.licenses && c.licenses.length) ? c.licenses[0] : "—";
       const rels = sbomRelationCounts(c.id);
       const record = c.recordKind === "reference" ? "Referenced only" : "Full record";
+      const folded = Math.max(0, (c.rawRecords || []).length - 1);
       const cell = (key)=>{
         switch(key){
           case "version": return `<td><span class="sbomCellText sbomVersion" title="${esc(c.version || "—")}">${esc(c.version || "—")}</span></td>`;
@@ -1945,12 +2046,13 @@
           default:
             return `<td>
               <strong>${esc(c.name)}</strong>
+              ${folded ? `<span class="miniTag">${folded + 1} records</span>` : ""}
               ${c.purl ? `<div class="muted mono" style="margin-top:4px;">${esc(c.purl)}</div>` : ""}
             </td>`;
         }
       };
       return `
-        <tr data-sbom-id="${esc(c.id)}">
+        <tr data-sbom-id="${esc(c.id)}" class="${selectedSbomId === c.id ? "selected" : ""}">
           ${cols.map(cdef=>cell(cdef.key)).join("")}
         </tr>
       `;
@@ -1960,9 +2062,82 @@
       tr.addEventListener("click", ()=>{
         const id = tr.getAttribute("data-sbom-id");
         const c = sbomComponents.find(x=>x.id === id);
-        if (c) renderSbomDetails(c);
+        if (c){
+          selectedSbomId = c.id;
+          tb.querySelectorAll("tr.selected").forEach(row=>row.classList.remove("selected"));
+          tr.classList.add("selected");
+          renderSbomDetails(c);
+        }
       });
     });
+  }
+
+  function fileChecksum(file, algorithm){
+    return (file.checksums || []).find(c=>String(c.algorithm || "").toUpperCase() === algorithm)?.checksumValue || "";
+  }
+
+  function shortHash(value){
+    const text = String(value || "");
+    return text.length > 18 ? `${text.slice(0, 18)}...` : text;
+  }
+
+  function renderDetailStat(label, value, detail){
+    return `
+      <div class="detailStat">
+        <span>${esc(label)}</span>
+        <strong>${esc(value)}</strong>
+        ${detail ? `<small>${esc(detail)}</small>` : ""}
+      </div>
+    `;
+  }
+
+  function renderInstalledFiles(files){
+    if (!files.length) return `<div class="muted">No installed file records found for this component.</div>`;
+    const rows = files.slice(0, 500).map(file=>{
+      const sha256 = fileChecksum(file, "SHA256");
+      const sha1 = fileChecksum(file, "SHA1");
+      const checksum = sha256 || sha1;
+      const algorithm = sha256 ? "SHA256" : (sha1 ? "SHA1" : "");
+      return `
+        <tr>
+          <td><span class="mono filePath" title="${esc(file.path || "unknown")}">${esc(file.path || "unknown")}</span></td>
+          <td>${esc(file.type || "—")}</td>
+          <td>${esc(file.license || "—")}</td>
+          <td>
+            ${algorithm ? `<span class="checksumAlgo">${esc(algorithm)}</span>` : ""}
+            <span class="mono" title="${esc(checksum || "")}">${esc(shortHash(checksum || "—"))}</span>
+          </td>
+        </tr>
+      `;
+    }).join("");
+    return `
+      <div class="detailTable">
+        <table>
+          <thead><tr><th>Path</th><th>Type</th><th>License</th><th>Checksum</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      ${files.length > 500 ? `<div class="muted" style="margin-top:8px;">Showing first 500 of ${files.length.toLocaleString()} files.</div>` : ""}
+    `;
+  }
+
+  function renderRecordDocuments(records){
+    if (!records.length) return "";
+    return `
+      <div class="recordList">
+        ${records.map(r=>`
+          <div>
+            <strong>${esc(r.id || "SPDX record")}</strong>
+            ${r.document ? `<span class="mono">${esc(r.document)}</span>` : ""}
+          </div>
+        `).join("")}
+      </div>
+    `;
+  }
+
+  function renderRelationList(items, emptyText){
+    if (!items.length) return `<div class="muted">${esc(emptyText)}</div>`;
+    return `<ul class="relationList">${items}</ul>`;
   }
 
   function renderSbomDetails(c){
@@ -1978,6 +2153,7 @@
     const incomingItems = incoming.map(r=>relItem(r, "in")).join("");
 
     const licPills = (c.licenses || []).slice(0, 8).map(l=>`<span class="chip">${esc(l)}</span>`).join("") || `<span class="chip">—</span>`;
+    const files = c.files || [];
     const rawRecords = c.rawRecords || (c.raw ? [{
       id: c.id,
       document: c.sourceDocument || "",
@@ -1990,48 +2166,66 @@
         <strong>${esc(field)}</strong>: ${values.map(v=>`<span class="chip">${esc(v)}</span>`).join(" ")}
       </div>
     `).join("");
-    const raw = rawRecords.length ? `
-      <details class="sbomSection">
-        <summary>Raw SPDX record${rawRecords.length > 1 ? "s" : ""} <span class="chip">${rawRecords.length}</span></summary>
-        ${rawRecords.map(r=>`
-          <div class="muted" style="margin:10px 0 6px;">
-            <strong>${esc(r.id || "SPDX record")}</strong>${r.document ? ` · <span class="mono">${esc(r.document)}</span>` : ""}
-          </div>
-          <pre class="sbomRaw">${esc(JSON.stringify(r.raw, null, 2))}</pre>
-        `).join("")}
-      </details>
-    ` : "";
     const record = c.recordKind === "reference" ? "Referenced only" : "Full package record";
+    const dependencySection = sbomRelations.length ? `
+      <div class="detailSection">
+        <h3 class="panel-title">Dependency Map</h3>
+        <div class="muted">Uses package relationships from SPDX when present. File containment is shown above as installed files.</div>
+        <div class="relationGrid">
+          <div>
+            <h3 class="panel-title">Depends on / contains</h3>
+            ${renderRelationList(outgoingItems, "No outgoing package relationships found.")}
+          </div>
+          <div>
+            <h3 class="panel-title">Used by</h3>
+            ${renderRelationList(incomingItems, "No incoming package relationships found.")}
+          </div>
+        </div>
+      </div>
+    ` : "";
 
     $("sbomDetailsPanel").innerHTML = `
       <h3 class="panel-title">Component Details</h3>
 
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-        <div style="font-weight:900;font-size:16px;">${esc(c.name)}</div>
+      <div class="componentHero">
+        <div>
+          <div class="componentName">${esc(c.name)}</div>
+          <div class="muted mono">${esc(c.id)}</div>
+        </div>
         ${c.version ? `<span class="chip"><strong>Version</strong>: ${esc(c.version)}</span>` : ""}
-        <span class="chip">${esc(record)}</span>
-        ${rawRecords.length > 1 ? `<span class="chip">${rawRecords.length} SPDX records folded</span>` : ""}
       </div>
 
-      <div class="muted" style="margin-top:8px;">
-        ID: <span class="mono">${esc(c.id)}</span>
+      <div class="detailGrid">
+        ${renderDetailStat("Record", record, rawRecords.length > 1 ? `${rawRecords.length} SPDX records folded` : "")}
+        ${renderDetailStat("Installed files", files.length.toLocaleString(), files.length ? "from SPDX file records" : "none in this SBOM")}
+        ${renderDetailStat("Outgoing", outgoing.length.toLocaleString(), "package relationships")}
+        ${renderDetailStat("Incoming", incoming.length.toLocaleString(), "package relationships")}
       </div>
 
-      ${c.supplier ? `<div class="muted" style="margin-top:6px;">Supplier: <strong>${esc(c.supplier)}</strong></div>` : ""}
-      ${c.description ? `<div class="muted" style="margin-top:10px;">${esc(c.description)}</div>` : ""}
+      <div class="detailSection">
+        <h3 class="panel-title">Package Metadata</h3>
+        ${c.supplier ? `<div class="muted">Supplier: <strong>${esc(c.supplier)}</strong></div>` : `<div class="muted">Supplier: —</div>`}
+        ${c.description ? `<div class="muted" style="margin-top:10px;">${esc(c.description)}</div>` : ""}
+      </div>
+
       ${variantRows ? `<div class="sbomNotice" style="margin-top:10px;"><strong>Grouped record metadata differs</strong>${variantRows}</div>` : ""}
 
-      <div style="height:12px"></div>
-      <h3 class="panel-title">Licenses</h3>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">${licPills}</div>
+      <div class="detailSection">
+        <h3 class="panel-title">Licenses</h3>
+        <div class="pillRow">${licPills}</div>
+      </div>
 
-      <div style="height:14px"></div>
-      <h3 class="panel-title">Relationships</h3>
-      <div class="muted">Outgoing: <strong>${outgoing.length}</strong>, incoming: <strong>${incoming.length}</strong>.</div>
-      ${outgoing.length ? `<h3 class="panel-title" style="margin-top:12px;">Outgoing</h3><ul class="muted tips">${outgoingItems}</ul>` : ""}
-      ${incoming.length ? `<h3 class="panel-title" style="margin-top:12px;">Incoming</h3><ul class="muted tips">${incomingItems}</ul>` : ""}
-      ${!outgoing.length && !incoming.length ? `<div class="muted" style="margin-top:8px;">No relationships available in this SBOM.</div>` : ""}
-      ${raw}
+      <div class="detailSection">
+        <h3 class="panel-title">Installed Files</h3>
+        ${renderInstalledFiles(files)}
+      </div>
+
+      ${dependencySection}
+
+      <div class="detailSection">
+        <h3 class="panel-title">Source Documents</h3>
+        ${renderRecordDocuments(rawRecords) || `<div class="muted">No source document metadata available.</div>`}
+      </div>
     `;
   }
 
@@ -2043,7 +2237,7 @@
     sbomDocuments = [];
     sbomFiltered = [];
     sbomSourceName = "";
-    $("sbomFormat").textContent = $("sbomCompCount").textContent = $("sbomDepCount").textContent = $("sbomTopLic").textContent = "—";
+    selectedSbomId = "";
     $("sbomLicFilter").innerHTML = `<option value="">All licenses</option>`;
     $("sbomRecordFilter").value = "";
     $("sbomQ").value = "";
@@ -2099,11 +2293,11 @@
       sbomRelations = sbom.relations || [];
       sbomDocuments = sbom.documents || [];
       sbomFiltered = [];
+      selectedSbomId = "";
       sbomSourceName = files.length === 1
         ? `${files[0].name}${objects.length > 1 ? ` (${objects.length} JSON docs)` : ""}`
         : `${files.length} files (${objects.length} JSON docs)`;
 
-      renderSbomMeta();
       renderSbomExplorer();
       sbomPopulateLicenseFilter();
       applySbomFilters();

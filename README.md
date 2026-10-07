@@ -153,9 +153,9 @@ Supported SBOM direction:
 
 * Yocto-generated SPDX JSON
 * Yocto-generated SPDX tar bundles
-* Modern SPDX 3.0.1-oriented analysis
-* Component-level review
-* Security and license profile customization
+* Component metadata, license, supplier, and source-document review
+* Installed file paths and checksums when present in package SPDX docs
+* Compliance readiness indicators derived from uploaded SBOM metadata
 
 For `.spdx.tar.zst`, the browser must support native zstd decompression. If it does not, decompress the archive to `.spdx.tar` first and upload that tar file.
 
