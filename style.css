@@ -34,8 +34,9 @@ body{
 /* ===== Header ===== */
 header{
   position:sticky; top:0; z-index:30;
-  background: linear-gradient(to bottom, rgba(7,11,18,.96), rgba(7,11,18,.72));
+  background: linear-gradient(to bottom, rgba(7,11,18,.99), rgba(7,11,18,.97));
   border-bottom:1px solid var(--border);
+  box-shadow: 0 14px 35px rgba(0,0,0,.40);
 }
 .header-inner{
   max-width: 1400px;
@@ -251,6 +252,30 @@ input[type="text"], select{
   outline:none;
 }
 input[type="text"]{min-width:280px}
+.loadStatus{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-top:12px;
+  padding:10px 12px;
+  border:1px solid rgba(96,165,250,.28);
+  border-radius:12px;
+  background:rgba(96,165,250,.10);
+  color:var(--text);
+  font-size:13px;
+  font-weight:800;
+}
+.loadStatus[hidden]{display:none;}
+.spinner{
+  width:16px;
+  height:16px;
+  border-radius:50%;
+  border:2px solid rgba(255,255,255,.22);
+  border-top-color:var(--accent);
+  animation:spin .8s linear infinite;
+  flex:0 0 auto;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
 
 /* Tables */
 .tableWrap{
@@ -432,6 +457,39 @@ tr:hover{background: rgba(255,255,255,.04); cursor:pointer;}
 
 .sbomGrid{grid-template-columns: 1.25fr .75fr;}
 @media (max-width: 1100px){ .sbomGrid{grid-template-columns:1fr;} }
+.sbomDataGrid{grid-template-columns:minmax(0, 1.25fr) minmax(320px, .75fr) !important;}
+.sbomDataGrid > *{min-width:0;}
+@media (max-width: 1100px){ .sbomDataGrid{grid-template-columns:1fr !important;} }
+.sbomTable{table-layout:fixed;}
+.sbomTable th,
+.sbomTable td{
+  overflow-wrap:anywhere;
+  word-break:normal;
+}
+#sbomDetailsPanel{
+  position:sticky;
+  top:190px;
+  align-self:start;
+  max-height:calc(100vh - 210px);
+  overflow:auto;
+  z-index:5;
+}
+@media (max-width: 1100px){
+  #sbomDetailsPanel{
+    position:static;
+    max-height:none;
+  }
+}
+.sbomCellText{
+  display:block;
+  max-width:100%;
+  min-width:0;
+}
+.sbomVersion{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
 
 .sbomPills{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
 .sbomPill{
@@ -446,6 +504,123 @@ tr:hover{background: rgba(255,255,255,.04); cursor:pointer;}
 .sbomMono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
 .sbomLink{color:#9ec1ff; text-decoration:none;}
 .sbomLink:hover{text-decoration:underline;}
+
+.sbomReport{
+  border:1px solid var(--border);
+  border-radius:14px;
+  background: rgba(255,255,255,.035);
+  padding:14px;
+}
+.sbomReportHead{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.sbomReportStats{display:flex; gap:8px; flex-wrap:wrap;}
+.sbomNotice{
+  margin-top:12px;
+  padding:10px 12px;
+  border-radius:12px;
+  border:1px solid rgba(96,165,250,.28);
+  background:rgba(96,165,250,.10);
+  color:var(--muted);
+  line-height:1.45;
+}
+.sbomExplorerGrid{
+  display:grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap:12px;
+  margin-top:14px;
+}
+@media (max-width: 1100px){ .sbomExplorerGrid{grid-template-columns:1fr;} }
+.sbomMiniPanel{
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:rgba(0,0,0,.16);
+  padding:12px;
+  min-width:0;
+}
+.sbomCoverageItem{margin-top:10px;}
+.sbomCoverageTop{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  color:var(--muted);
+  font-size:12px;
+}
+.sbomBar{
+  height:8px;
+  border-radius:999px;
+  background:rgba(255,255,255,.08);
+  overflow:hidden;
+  margin-top:6px;
+}
+.sbomBar span{
+  display:block;
+  height:100%;
+  border-radius:999px;
+  background:linear-gradient(90deg, var(--info), var(--accent));
+}
+.sbomCountList{
+  list-style:none;
+  padding:0;
+  margin:8px 0 0;
+}
+.sbomCountList li{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  padding:7px 0;
+  border-bottom:1px solid rgba(255,255,255,.07);
+}
+.truncate{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.sbomSection{
+  margin-top:14px;
+  border-top:1px solid var(--border);
+  padding-top:12px;
+}
+.sbomSection summary{
+  cursor:pointer;
+  font-weight:900;
+}
+.sbomReportTable{
+  max-height:420px;
+  margin-top:12px;
+}
+.sbomReportTable table{min-width:1080px;}
+.sbomReportTable td{
+  vertical-align:top;
+  line-height:1.45;
+}
+.sbomRaw{
+  max-height:320px;
+  overflow:auto;
+  padding:12px;
+  border-radius:12px;
+  background:rgba(0,0,0,.22);
+  border:1px solid var(--border);
+  color:var(--muted);
+  white-space:pre-wrap;
+}
+.tableSort{
+  color:inherit;
+  background:none;
+  border:0;
+  padding:0;
+  font:inherit;
+  font-weight:900;
+  cursor:pointer;
+  text-align:left;
+}
+.tableSort:hover{color:#fff;}
 
 .depList{
   margin:10px 0 0 18px;

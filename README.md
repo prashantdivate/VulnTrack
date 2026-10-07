@@ -146,15 +146,18 @@ To analyze an SBOM:
 1. Open the VulnTrack dashboard.
 2. Click the SBOM tab.
 3. Click Choose SBOM.
-4. Upload the generated SPDX JSON file.
+4. Upload the generated SPDX JSON file, multiple SPDX JSON files, or the Yocto `.spdx.tar` / `.spdx.tar.zst` bundle.
 5. Click individual components to inspect details.
 
 Supported SBOM direction:
 
 * Yocto-generated SPDX JSON
+* Yocto-generated SPDX tar bundles
 * Modern SPDX 3.0.1-oriented analysis
 * Component-level review
 * Security and license profile customization
+
+For `.spdx.tar.zst`, the browser must support native zstd decompression. If it does not, decompress the archive to `.spdx.tar` first and upload that tar file.
 
 ---
 
