@@ -1777,11 +1777,15 @@
     `;
   }
 
-  function renderCountList(title, rows, emptyText){
-    const body = rows.length ? rows.slice(0, 8).map(([name,count])=>`
+  function renderCountList(title, rows, emptyText, options = {}){
+    const limit = options.limit ?? 8;
+    const visibleRows = rows.slice(0, limit);
+    const body = rows.length ? visibleRows.map(([name,count])=>`
       <li><span class="truncate">${esc(name)}</span><strong>${count.toLocaleString()}</strong></li>
     `).join("") : `<li class="muted">${esc(emptyText)}</li>`;
-    return `<div class="sbomMiniPanel"><h3 class="panel-title">${esc(title)}</h3><ul class="sbomCountList">${body}</ul></div>`;
+    const hiddenCount = rows.length - visibleRows.length;
+    const more = hiddenCount > 0 ? `<li class="muted"><span>${hiddenCount.toLocaleString()} more</span></li>` : "";
+    return `<div class="sbomMiniPanel"><h3 class="panel-title">${esc(title)}</h3><ul class="sbomCountList ${options.scroll ? "scroll" : ""}">${body}${more}</ul></div>`;
   }
 
   function licenseNeedsReview(license){
@@ -1934,7 +1938,7 @@
         </div>
         ${renderCountList("Record Types", recordCounts, "No records")}
         ${renderCountList("Package Relationship Types", relationTypes, "No package dependency relationships in selected SBOM")}
-        ${renderCountList("Licenses", licenseCounts, "No license values in selected SBOM")}
+        ${renderCountList("Licenses", licenseCounts, "No license values in selected SBOM", { limit: licenseCounts.length, scroll: true })}
         ${renderCountList("Suppliers", supplierCounts, "No supplier values in selected SBOM")}
       </div>
 

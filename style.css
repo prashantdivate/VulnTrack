@@ -766,6 +766,11 @@ tr:hover{background: rgba(255,255,255,.04); cursor:pointer;}
   padding:0;
   margin:8px 0 0;
 }
+.sbomCountList.scroll{
+  max-height:320px;
+  overflow:auto;
+  padding-right:4px;
+}
 .sbomCountList li{
   display:flex;
   justify-content:space-between;
