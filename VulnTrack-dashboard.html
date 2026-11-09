@@ -10,6 +10,7 @@
 
   <!-- External CSS -->
   <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="release-workspace.css?v=11">
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <script src="report-generation.js?v=6"></script>
@@ -40,7 +41,7 @@
   <div class="header-inner">
     <div class="h-left">
       <div class="h-title">
-        <span class="appTitle" id="reportTitle">VulnTrack Report</span>
+        <span class="appTitle" id="reportTitle">VulnTrack</span>
         <div class="compatibility-badges">
           <span class="badge">
             <img src="https://www.yoctoproject.org/wp-content/uploads/sites/32/2023/09/YoctoProject_Logo_RGB_White_small.svg" alt="Yocto Logo" height="30">
@@ -56,9 +57,10 @@
     </div>
 
     <div class="actions">
-      <label class="btn" for="file">Choose JSON</label>
+      <button class="btn" id="rwImportScan">Import build</button>
+
       <input id="file" type="file" accept=".json,application/json"/>
-      <button class="btn" id="resetBtn">Reset</button>
+      <button class="btn" id="resetBtn" title="Clear loaded analysis and all saved portfolios, scans and reviews">Reset all data</button>
     </div>
   </div>
 
@@ -81,19 +83,15 @@
   </div>
 
   <div class="tabs">
-    <div class="tab active" data-page="summary">Summary</div>
-    <div class="tab" data-page="packages">Packages</div>
-    <div class="tab" data-page="issues">Issues</div>
-    <div class="tab" data-page="sources">Sources</div>
-    <div class="tab" data-page="products">Products & Fixes</div>
-    <div class="tab" data-page="sbom">SBOM</div>
+    <div class="tab active" data-page="releases" role="button" tabindex="0">Portfolios</div>
   </div>
 </header>
 
 <main>
+  <section class="page active" id="page-releases"><div id="releaseWorkspace"></div></section>
 
   <!-- ===== Summary ===== -->
-  <section class="page active" id="page-summary">
+  <section class="page" id="page-summary">
     <div class="grid2">
       <div class="panel">
         <h3 class="panel-title">Summary & Analysis</h3>
@@ -430,6 +428,7 @@
   </section>
 
 </main>
+<dialog id="releaseDialog" class="rw-dialog" aria-label="Release workspace dialog"></dialog>
 
 <script>
   // ===== Utilities =====
@@ -446,7 +445,7 @@
     const v3 = toNum(issue.scorev3);
     const v2 = toNum(issue.scorev2);
     const s = v3 > 0 ? v3 : v2;
-    if (s >= 9.0) return "Critical";
+    if (v3 >= 9.0) return "Critical"; // CVSS v2 has no Critical category.
     if (s >= 7.0) return "High";
     if (s >= 4.0) return "Medium";
     if (s >  0.0) return "Low";
@@ -456,8 +455,8 @@
   function sevColor(sev){
     switch(sev){
       case "Critical": return "rgba(255, 88, 120, 0.95)";
-      case "High":     return "rgba(255, 170, 80, 0.95)";
-      case "Medium":   return "rgba(120, 200, 255, 0.95)";
+      case "High":     return "rgba(255, 139, 54, 0.95)";
+      case "Medium":   return "rgba(246, 195, 78, 0.95)";
       case "Low":      return "rgba(140, 255, 180, 0.95)";
       default:         return "rgba(200, 200, 200, 0.85)";
     }
@@ -561,6 +560,7 @@
     const labels = ["Critical","High","Medium","Low","None"];
     const data = labels.map(l=>counts[l] ?? 0);
     if (sevChart) sevChart.destroy();
+    if (typeof Chart === "undefined") return;
 
     sevChart = new Chart($("sevChart"), {
       type: "doughnut",
@@ -593,6 +593,7 @@
     const labels = pairs.map(p=>p[0]);
     const data = pairs.map(p=>p[1]);
     if (pkgChart) pkgChart.destroy();
+    if (typeof Chart === "undefined") return;
 
     pkgChart = new Chart($("pkgChart"), {
       type: "bar",
@@ -624,15 +625,18 @@
   }
 
   function applyHashTab(){
-    const tab = (location.hash || "#summary").replace("#","");
-    const allowed = new Set(["summary","packages","issues","sources","products","sbom","cve"]);
-    setTab(allowed.has(tab) ? tab : "summary", false);
+    const tab = (location.hash || "#releases").replace("#","");
+    const allowed = new Set(["releases"]);
+    setTab(allowed.has(tab) ? tab : "releases", false);
   }
   window.addEventListener("popstate", applyHashTab);
   window.addEventListener("hashchange", applyHashTab);
 
   document.querySelectorAll(".tab").forEach(t=>{
+    t.setAttribute("role", "button");
+    t.tabIndex = 0;
     t.addEventListener("click", ()=>setTab(t.dataset.page, true));
+    t.addEventListener("keydown", event=>{ if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setTab(t.dataset.page, true); } });
   });
 
   // ===== Products & Fixes =====
@@ -1488,11 +1492,13 @@
     const relations = [];
     const containedFilesByComponent = new Map();
     for (const rel of (obj.relationships || [])){
-      const a = qualifySpdxRef(rel.spdxElementId, rel._documentRef);
-      const b = qualifySpdxRef(rel.relatedSpdxElement, rel._documentRef);
-      const t = rel.relationshipType;
+      const inverse = ["RUNTIME_DEPENDENCY_OF","BUILD_DEPENDENCY_OF","DEPENDENCY_OF"].includes(rel.relationshipType);
+      const a = qualifySpdxRef(inverse ? rel.relatedSpdxElement : rel.spdxElementId, rel._documentRef);
+      const b = qualifySpdxRef(inverse ? rel.spdxElementId : rel.relatedSpdxElement, rel._documentRef);
+      const t = ({RUNTIME_DEPENDENCY_OF:"DEPENDS_ON",DEPENDENCY_OF:"DEPENDS_ON",BUILD_DEPENDENCY_OF:"BUILD_DEPENDS_ON"})[rel.relationshipType] || rel.relationshipType;
+      if (t === "GENERATED_FROM" && !(isSpdxPackageRef(a) && isSpdxRecipeRef(b))) continue;
       if (!a || !b) continue;
-      if (t === "DEPENDS_ON" || t === "CONTAINS" || t === "DYNAMIC_LINK" || t === "STATIC_LINK"){
+      if (["DEPENDS_ON","BUILD_DEPENDS_ON","GENERATED_FROM","CONTAINS","DYNAMIC_LINK","STATIC_LINK"].includes(t)){
         if (t === "CONTAINS" && isSpdxFileRef(b) && filesById.has(b)){
           const list = containedFilesByComponent.get(a) || [];
           list.push(filesById.get(b));
@@ -1566,39 +1572,23 @@
   }
 
   function mergeSpdxObjects(objects){
-    const namespaceToDocRef = new Map();
-    for (const obj of objects){
-      for (const ref of (obj.externalDocumentRefs || [])){
-        if (ref.externalDocumentId && ref.spdxDocument){
-          namespaceToDocRef.set(ref.spdxDocument, ref.externalDocumentId);
-        }
-      }
-    }
-
+    // External-document aliases are local to a document; resolve by namespace first.
+    const namespaceToDocRef = new Map(objects.filter(obj=>obj.documentNamespace).map((obj,i)=>[obj.documentNamespace,`DocumentRef-vulntrack-${i}`]));
+    const endpoint = (ref,obj)=>{
+      const text = String(ref || "");
+      if (!text.startsWith("DocumentRef-") || !text.includes(":")) return text;
+      const split = text.indexOf(":"), alias = text.slice(0,split);
+      const external = (obj.externalDocumentRefs || []).find(r=>r.externalDocumentId===alias);
+      const canonical = namespaceToDocRef.get(external?.spdxDocument);
+      return canonical ? canonical + text.slice(split) : text;
+    };
     return {
-      spdxVersion: objects[0]?.spdxVersion || "SPDX",
-      name: objects[0]?.name || "Merged SPDX upload",
-      documentNamespace: objects[0]?.documentNamespace || "",
-      _documents: objects.map(obj=>({
-        name: obj.name || "SPDX document",
-        source: obj._sourceName || "",
-        version: obj.spdxVersion || "",
-        namespace: obj.documentNamespace || "",
-        packages: (obj.packages || []).length,
-        relationships: (obj.relationships || []).length
-      })),
-      packages: objects.flatMap(obj=>{
-        const documentRef = namespaceToDocRef.get(obj.documentNamespace) || "";
-        return (obj.packages || []).map(p=>({ ...p, _documentRef: documentRef, _sourceDocument: obj._sourceName || obj.name || "" }));
-      }),
-      files: objects.flatMap(obj=>{
-        const documentRef = namespaceToDocRef.get(obj.documentNamespace) || "";
-        return (obj.files || []).map(f=>({ ...f, _documentRef: documentRef, _sourceDocument: obj._sourceName || obj.name || "" }));
-      }),
-      relationships: objects.flatMap(obj=>{
-        const documentRef = namespaceToDocRef.get(obj.documentNamespace) || "";
-        return (obj.relationships || []).map(r=>({ ...r, _documentRef: documentRef }));
-      })
+      spdxVersion:objects[0]?.spdxVersion || "SPDX", name:objects[0]?.name || "Merged SPDX upload",
+      documentNamespace:objects[0]?.documentNamespace || "",
+      _documents:objects.map(obj=>({name:obj.name || "SPDX document",source:obj._sourceName || "",version:obj.spdxVersion || "",namespace:obj.documentNamespace || "",packages:(obj.packages || []).length,relationships:(obj.relationships || []).length})),
+      packages:objects.flatMap(obj=>(obj.packages || []).map(p=>({...p,_documentRef:namespaceToDocRef.get(obj.documentNamespace) || "",_sourceDocument:obj._sourceName || obj.name || ""}))),
+      files:objects.flatMap(obj=>(obj.files || []).map(f=>({...f,_documentRef:namespaceToDocRef.get(obj.documentNamespace) || "",_sourceDocument:obj._sourceName || obj.name || ""}))),
+      relationships:objects.flatMap(obj=>(obj.relationships || []).map(r=>({...r,spdxElementId:endpoint(r.spdxElementId,obj),relatedSpdxElement:endpoint(r.relatedSpdxElement,obj),_documentRef:namespaceToDocRef.get(obj.documentNamespace) || ""})))
     };
   }
 
@@ -1656,7 +1646,12 @@
       const fullName = nextPaxPath || (prefix ? `${prefix}/${name}` : name);
       const data = bytes.subarray(dataStart, dataEnd);
 
-      if (type === "x"){
+      if (type === "L"){
+        // GNU tar stores long paths in a separate record before the actual file.
+        nextPaxPath = TAR_TEXT_DECODER.decode(data).replace(/\0.*$/s, "");
+      }else if (type === "K"){
+        // GNU long link targets do not replace a pending filename.
+      }else if (type === "x"){
         nextPaxPath = readTarPaxPath(data);
       }else if (type === "g"){
         nextPaxPath = "";
@@ -1719,6 +1714,7 @@
       setSbomLoading(`Extracting JSON documents from ${file.name}...`);
       await nextPaint();
       const objects = [];
+      const hashes = [];
       const jsonEntries = parseTarEntries(buffer).filter(e=>/\.json$/i.test(e.name));
 
       for (let i = 0; i < jsonEntries.length; i++){
@@ -1731,6 +1727,7 @@
           const obj = JSON.parse(TAR_TEXT_DECODER.decode(entry.bytes));
           if (detectSbomFormat(obj) !== "Unknown"){
             obj._sourceName = entry.name;
+            if (globalThis.crypto?.subtle) hashes.push(crypto.subtle.digest("SHA-1",entry.bytes).then(hash=>{obj._sourceSha1=[...new Uint8Array(hash)].map(v=>v.toString(16).padStart(2,"0")).join("");}));
             objects.push(obj);
           }
         }catch(err){
@@ -1738,6 +1735,7 @@
         }
       }
 
+      await Promise.all(hashes);
       if (!objects.length) throw new Error("No CycloneDX or SPDX JSON documents were found inside the archive.");
       return objects;
     }
@@ -2275,6 +2273,8 @@
     }
 
     buildFromYocto(obj);
+    setTab("summary");
+    window.VulnTrackWorkspace?.capture(obj, f.name);
   });
 
   $("sbomFile").addEventListener("change", async (e)=>{
@@ -2420,9 +2420,11 @@
   $("pkgLayerFilter").addEventListener("change", renderPackagesList);
 
   // Initialize tab state on first load
-  if (!location.hash) history.replaceState({tab:"summary"}, "", "#summary");
+  if (!location.hash) history.replaceState({tab:"releases"}, "", "#releases");
   applyHashTab();
 </script>
 
+<script src="release-workspace.js?v=11"></script>
 </body>
 </html>
+
